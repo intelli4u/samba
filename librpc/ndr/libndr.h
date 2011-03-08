@@ -124,6 +124,20 @@ struct ndr_print {
 #define LIBNDR_FLAG_STR_UTF8		(1<<12)
 #define LIBNDR_STRING_FLAGS		(0x7FFC)
 
+/*
+ * don't debug NDR_ERR_BUFSIZE failures,
+ * as the available buffer might be incomplete.
+ *
+ * return NDR_ERR_INCOMPLETE_BUFFER instead.
+ */
+#define LIBNDR_FLAG_INCOMPLETE_BUFFER (1<<16)
+
+/*
+ * This lets ndr_pull_subcontext_end() return
+ * NDR_ERR_UNREAD_BYTES.
+ */
+#define LIBNDR_FLAG_SUBCONTEXT_NO_UNREAD_BYTES (1<<17)
+
 /* set if relative pointers should *not* be marshalled in reverse order */
 #define LIBNDR_FLAG_NO_RELATIVE_REVERSE	(1<<18)
 
@@ -199,7 +213,9 @@ enum ndr_err_code {
 	NDR_ERR_IPV6ADDRESS,
 	NDR_ERR_INVALID_POINTER,
 	NDR_ERR_UNREAD_BYTES,
-	NDR_ERR_NDR64
+	NDR_ERR_NDR64,
+	NDR_ERR_FLAGS,
+	NDR_ERR_INCOMPLETE_BUFFER
 };
 
 #define NDR_ERR_CODE_IS_SUCCESS(x) (x == NDR_ERR_SUCCESS)
