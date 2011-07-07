@@ -454,7 +454,7 @@ LIB_OBJ = $(LIBSAMBAUTIL_OBJ) $(UTIL_OBJ) $(CRYPTO_OBJ) \
 	  lib/username.o \
 	  ../libds/common/flag_mapping.o \
 	  lib/access.o lib/smbrun.o \
-	  lib/bitmap.o lib/dprintf.o $(UTIL_REG_OBJ) \
+	  ../lib/util/bitmap.o lib/dprintf.o $(UTIL_REG_OBJ) \
 	  lib/wins_srv.o \
 	  lib/util_str.o lib/clobber.o lib/util_sid.o \
 	  lib/util_unistr.o ../lib/util/charset/codepoints.o lib/util_file.o \
