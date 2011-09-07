@@ -233,17 +233,44 @@ enum ndr_compression_alg {
 
 /*
   flags passed to control parse flow
+  These are deliberately in a different range to the NDR_IN/NDR_OUT
+  flags to catch mixups
 */
-#define NDR_SCALARS 1
-#define NDR_BUFFERS 2
+#define NDR_SCALARS    0x100
+#define NDR_BUFFERS    0x200
 
 /*
-  flags passed to ndr_print_*()
+  flags passed to ndr_print_*() and ndr pull/push for functions
+  These are deliberately in a different range to the NDR_SCALARS/NDR_BUFFERS
+  flags to catch mixups
 */
-#define NDR_IN 1
-#define NDR_OUT 2
-#define NDR_BOTH 3
-#define NDR_SET_VALUES 4
+#define NDR_IN         0x10
+#define NDR_OUT        0x20
+#define NDR_BOTH       0x30
+#define NDR_SET_VALUES 0x40
+
+
+#define NDR_PULL_CHECK_FLAGS(ndr, ndr_flags) do { \
+	if ((ndr_flags) & ~(NDR_SCALARS|NDR_BUFFERS)) { \
+		return ndr_pull_error(ndr, NDR_ERR_FLAGS, "Invalid pull struct ndr_flags 0x%x", ndr_flags); \
+	} \
+} while (0)
+
+#define NDR_PUSH_CHECK_FLAGS(ndr, ndr_flags) do { \
+	if ((ndr_flags) & ~(NDR_SCALARS|NDR_BUFFERS)) \
+		return ndr_push_error(ndr, NDR_ERR_FLAGS, "Invalid push struct ndr_flags 0x%x", ndr_flags); \
+} while (0)
+
+#define NDR_PULL_CHECK_FN_FLAGS(ndr, flags) do { \
+	if ((flags) & ~(NDR_BOTH|NDR_SET_VALUES)) { \
+		return ndr_pull_error(ndr, NDR_ERR_FLAGS, "Invalid fn pull flags 0x%x", flags); \
+	} \
+} while (0)
+
+#define NDR_PUSH_CHECK_FN_FLAGS(ndr, flags) do { \
+	if ((flags) & ~(NDR_BOTH|NDR_SET_VALUES)) \
+		return ndr_push_error(ndr, NDR_ERR_FLAGS, "Invalid fn push flags 0x%x", flags); \
+} while (0)
 
 #define NDR_PULL_NEED_BYTES(ndr, n) do { \
 	if (unlikely((n) > ndr->data_size || ndr->offset + (n) > ndr->data_size)) { \
