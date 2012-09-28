@@ -1,7 +1,11 @@
 <samba:parameter name="idmap config"
                  context="G"
+<<<<<<< HEAD
 		 type="string"
                  advanced="1" developer="1" hide="1"
+=======
+                 type="string"
+>>>>>>> 4a6a010e787... docs:smbdotconf: remove swat-specific flags.
                  xmlns:samba="http://www.samba.org/samba/DTD/samba-doc">
 <description>
 
