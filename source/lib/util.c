@@ -1641,6 +1641,43 @@ BOOL is_in_path(const char *name, name_compare_entry *namelist, BOOL case_sensit
 	return False;
 }
 
+BOOL is_admin_path(const char *name, name_compare_entry *namelist, BOOL case_sensitive)
+{
+	int i;
+
+	/* if we have no list it's obviously not in the path */
+	if((namelist == NULL ) || ((namelist != NULL) && (namelist[0].name == NULL))) {
+		return False;
+	}
+
+	for(; namelist->name != NULL; namelist++) {
+		/* The "hide files" directive is modified to support
+		 * path entries. So replace '|' with '/'.
+		 * This also means the directory name cannot have '|'
+		 * character.
+		 */
+		for (i=0; i<strlen(namelist->name); i++) {
+			if (namelist->name[i] == '|')
+				namelist->name[i] = '/';
+		}
+
+		if(namelist->is_wild) {
+			if (mask_match(name, namelist->name, case_sensitive)) {
+				DEBUG(8,("is_in_path: mask match succeeded\n"));
+				return True;
+			}
+		} else {
+			if((case_sensitive && (strcmp(name, namelist->name) == 0))||
+						(!case_sensitive && (StrCaseCmp(name, namelist->name) == 0))) {
+				DEBUG(8,("is_in_path: match succeeded\n"));
+				return True;
+			}
+		}
+	}
+ 
+	return False;
+}
+
 /*******************************************************************
  Strip a '/' separated list into an array of 
  name_compare_enties structures suitable for 

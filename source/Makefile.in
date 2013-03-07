@@ -40,8 +40,13 @@ INSTALLCLIENTCMD_SH=@INSTALLCLIENTCMD_SH@
 INSTALLCLIENTCMD_A=@INSTALLCLIENTCMD_A@
 
 VPATH=@srcdir@
-srcdir=@abs_srcdir@
-builddir=@abs_builddir@
+
+#modified water, @make error if the srcdir changed, 11/24/2008
+#srcdir=@abs_srcdir@
+#builddir=@abs_builddir@
+srcdir := $(shell pwd)
+builddir := $(shell pwd)
+
 SHELL=/bin/sh
 DESTDIR=/
 
@@ -107,6 +112,10 @@ FLAGS4 =
 FLAGS5 = $(FLAGS1) $(FLAGS2) $(FLAGS3) $(FLAGS4)
 FLAGS  = $(ISA) $(FLAGS5) 
 
+ifeq ($(LINUXDIR), $(SRCBASE)/linux/linux-2.6)
+CFLAGS += -DLINUX26
+endif 
+
 PASSWD_FLAGS = -DSMB_PASSWD_FILE=\"$(SMB_PASSWD_FILE)\" -DPRIVATE_DIR=\"$(PRIVATE_DIR)\"
 PATH_FLAGS1 = -DCONFIGFILE=\"$(CONFIGFILE)\"  -DSBINDIR=\"$(SBINDIR)\"
 PATH_FLAGS2 = $(PATH_FLAGS1) -DBINDIR=\"$(BINDIR)\" -DDRIVERFILE=\"$(DRIVERFILE)\" 
@@ -128,7 +137,9 @@ BIN_PROGS2 = bin/smbcontrol@EXEEXT@ bin/smbtree@EXEEXT@ bin/tdbbackup@EXEEXT@ \
 	bin/tdbtool@EXEEXT@
 BIN_PROGS3 = bin/smbpasswd@EXEEXT@ bin/rpcclient@EXEEXT@ bin/smbcacls@EXEEXT@ \
 	bin/profiles@EXEEXT@ bin/ntlm_auth@EXEEXT@ \
-	bin/smbcquotas@EXEEXT@
+	bin/smbcquotas@EXEEXT@ bin/smb_pass@EXEEXT@
+#                              ^^^^^^^^^^^^^^^^^^^^	
+#                09/10/2007, zzz for generating file
 
 # editreg removed from standard build until it is portable. It needs a major rewrite to 
 # achieve this (tridge)
@@ -459,6 +470,11 @@ TESTPARM_OBJ = utils/testparm.o \
 
 TESTPRNS_OBJ = utils/testprns.o $(PARAM_OBJ) $(PRINTING_OBJ) \
                $(LIB_NONSMBD_OBJ) libsmb/nterr.o
+
+#09/10/2007, zzz for generating file
+#SMB_PASS_OBJ = utils/smb/smb_pass.o lib/md4.o libsmb/smbdes.o 
+SMB_PASS_OBJ = utils/smb_pass.o $(PARAM_OBJ)  $(LIBSAMBA_OBJ) \
+		$(LIB_NONSMBD_OBJ)
 
 SMBPASSWD_OBJ = utils/smbpasswd.o $(PASSCHANGE_OBJ) $(PARAM_OBJ) $(SECRETS_OBJ) \
 		$(LIBSMB_OBJ) $(PASSDB_OBJ) $(GROUPDB_OBJ)\
@@ -890,6 +906,12 @@ bin/smbcontrol@EXEEXT@: $(SMBCONTROL_OBJ) @BUILD_POPT@ bin/.dummy
 bin/smbtree@EXEEXT@: $(SMBTREE_OBJ) @BUILD_POPT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SMBTREE_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) 
+
+#09/10/2007, zzz for generating file
+bin/smb_pass@EXEEXT@: $(SMB_PASS_OBJ) bin/.dummy
+	@echo Linking $@
+	@$(CC) $(FLAGS) -o $@ $(SMB_PASS_OBJ) $(LDFLAGS) $(PASSDB_LIBS) \
+		$(DYNEXP) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS) 
 
 bin/smbpasswd@EXEEXT@: $(SMBPASSWD_OBJ) bin/.dummy
 	@echo Linking $@

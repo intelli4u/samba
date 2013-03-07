@@ -267,6 +267,9 @@ static int reply_nt1(char *inbuf, char *outbuf)
 	if (SMB_OFF_T_BITS == 64)
 		capabilities |= CAP_LARGE_FILES;
 
+    /* Support large file any way */
+	capabilities |= CAP_LARGE_FILES|CAP_LARGE_READX|CAP_LARGE_WRITEX;
+
 	if (lp_readraw() && lp_writeraw())
 		capabilities |= CAP_RAW_MODE;
 	

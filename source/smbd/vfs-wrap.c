@@ -30,6 +30,12 @@
    is sure to try and execute them.  These stubs are used to prevent
    this possibility. */
 
+#ifdef MAX_USB_ACCESS
+extern CON_STATISTIC *con_st;
+extern int binary_semaphore_post (int semid);
+extern int binary_semaphore_wait (int semid);
+#endif
+
 int vfswrap_dummy_connect(vfs_handle_struct *handle, connection_struct *conn, const char *service, const char *user)
 {
     return 0;    /* Return >= 0 for success */
@@ -37,6 +43,7 @@ int vfswrap_dummy_connect(vfs_handle_struct *handle, connection_struct *conn, co
 
 void vfswrap_dummy_disconnect(vfs_handle_struct *handle, connection_struct *conn)
 {
+
 }
 
 /* Disk operations */
@@ -186,9 +193,30 @@ int vfswrap_open(vfs_handle_struct *handle, connection_struct *conn, const char 
 {
 	int result;
 
+
+#if 0 //def MAX_USB_ACCESS  
+	if(con_st != NULL)
+	{
+		if ( ( con_st->num ) >= MAX_CON_NUM)
+			return -1;
+	}
+	//cprintf("*******%s(%d):con_st->num=%d\n", __FUNCTION__, __LINE__, con_st->num);
+#endif
+
 	START_PROFILE(syscall_open);
 	result = sys_open(fname, flags, mode);
 	END_PROFILE(syscall_open);
+
+
+#if 0 //def MAX_USB_ACCESS  // pling removed 07/18/2012, In Win7, copy a folder with more than 15 files may have problems
+	if (result != -1 && con_st != NULL)
+	{
+		binary_semaphore_wait (con_st->sem_id);
+		++(con_st->num);
+		binary_semaphore_post (con_st->sem_id);
+	}
+#endif
+
 	return result;
 }
 
@@ -200,6 +228,18 @@ int vfswrap_close(vfs_handle_struct *handle, files_struct *fsp, int fd)
 
 	result = close(fd);
 	END_PROFILE(syscall_close);
+
+#if 0 //def MAX_USB_ACCESS  // pling removed 07/18/2012, In Win7, copy a folder with more than 15 files may have problems
+	//if(con_st != NULL)
+	if (result != -1 && con_st != NULL)
+    {
+        binary_semaphore_wait (con_st->sem_id);
+        --(con_st->num);
+        binary_semaphore_post (con_st->sem_id);
+    }
+    //cprintf("*******%s(%d):con_st->num=%d\n", __FUNCTION__, __LINE__, con_st->num);
+#endif
+
 	return result;
 }
 
@@ -213,8 +253,10 @@ ssize_t vfswrap_read(vfs_handle_struct *handle, files_struct *fsp, int fd, void 
 	return result;
 }
 
+//ssize_t vfswrap_pread(vfs_handle_struct *handle, files_struct *fsp, int fd, void *data,
+//			size_t n, SMB_OFF_T offset)
 ssize_t vfswrap_pread(vfs_handle_struct *handle, files_struct *fsp, int fd, void *data,
-			size_t n, SMB_OFF_T offset)
+			size_t n, SMB_BIG_UINT offset)
 {
 	ssize_t result;
 
@@ -267,8 +309,10 @@ ssize_t vfswrap_write(vfs_handle_struct *handle, files_struct *fsp, int fd, cons
 	return result;
 }
 
+//ssize_t vfswrap_pwrite(vfs_handle_struct *handle, files_struct *fsp, int fd, const void *data,
+//			size_t n, SMB_OFF_T offset)
 ssize_t vfswrap_pwrite(vfs_handle_struct *handle, files_struct *fsp, int fd, const void *data,
-			size_t n, SMB_OFF_T offset)
+			size_t n, SMB_BIG_UINT offset)
 {
 	ssize_t result;
 
@@ -306,9 +350,11 @@ ssize_t vfswrap_pwrite(vfs_handle_struct *handle, files_struct *fsp, int fd, con
 	return result;
 }
 
-SMB_OFF_T vfswrap_lseek(vfs_handle_struct *handle, files_struct *fsp, int filedes, SMB_OFF_T offset, int whence)
+//SMB_OFF_T vfswrap_lseek(vfs_handle_struct *handle, files_struct *fsp, int filedes, SMB_OFF_T offset, int whence)
+SMB_BIG_UINT vfswrap_lseek(vfs_handle_struct *handle, files_struct *fsp, int filedes, SMB_BIG_UINT offset, int whence)
 {
-	SMB_OFF_T result = 0;
+	//SMB_OFF_T result = 0;
+	SMB_BIG_UINT result = 0;
 
 	START_PROFILE(syscall_lseek);
 
@@ -332,12 +378,23 @@ SMB_OFF_T vfswrap_lseek(vfs_handle_struct *handle, files_struct *fsp, int filede
 	return result;
 }
 
-ssize_t vfswrap_sendfile(vfs_handle_struct *handle, int tofd, files_struct *fsp, int fromfd, const DATA_BLOB *hdr,
-			SMB_OFF_T offset, size_t n)
+#define cprintf(fmt, args...) do { \
+	FILE *fp = fopen("/dev/console", "w"); \
+	if (fp) { \
+		fprintf(fp, fmt , ## args); \
+		fclose(fp); \
+	} \
+} while (0)
+
+/* Foxconn modified start by EricHuang, 01/31/2013 */
+ssize_t vfswrap_sendfile(vfs_handle_struct *handle, int tofd, files_struct *fsp, int fromfd, const DATA_BLOB *hdr, SMB_BIG_UINT offset, size_t n)
+//ssize_t vfswrap_sendfile(vfs_handle_struct *handle, int tofd, files_struct *fsp, int fromfd, const DATA_BLOB *hdr, SMB_OFF_T offset, size_t n)
+/* Foxconn modified end by EricHuang, 01/31/2013 */
 {
 	ssize_t result;
 
 	START_PROFILE_BYTES(syscall_sendfile, n);
+	//cprintf("%s(%d)\n", __FUNCTION__, __LINE__); //debug
 	result = sys_sendfile(tofd, fromfd, hdr, offset, n);
 	END_PROFILE(syscall_sendfile);
 	return result;
@@ -468,6 +525,7 @@ int vfswrap_stat(vfs_handle_struct *handle, connection_struct *conn, const char 
 	START_PROFILE(syscall_stat);
 	result = sys_stat(fname, sbuf);
 	END_PROFILE(syscall_stat);
+
 	return result;
 }
 

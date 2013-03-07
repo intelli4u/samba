@@ -1381,7 +1381,8 @@ static void init_globals(void)
 	Globals.PrintcapCacheTime = 0;
 	/* Was 65535 (0xFFFF). 0x4101 matches W2K and causes major speed improvements... */
 	/* Discovered by 2 days of pain by Don McCall @ HP :-). */
-	Globals.max_xmit = 0x4104;
+	//Globals.max_xmit = 0x4104;
+	Globals.max_xmit = 0xffff; /* wklin modified */
 	Globals.max_mux = 50;	/* This is *needed* for profile support. */
 	Globals.lpqcachetime = 30;	/* changed to handle large print servers better -- jerry */
 	Globals.bDisableSpoolss = False;
@@ -4079,8 +4080,9 @@ static void set_default_server_announce_type(void)
 	/* note that the flag should be set only if we have a 
 	   printer service but nmbd doesn't actually load the 
 	   services so we can't tell   --jerry */
-
-	default_server_announce |= SV_TYPE_PRINTQ_SERVER;
+    /*  removed start pling 07/16/2009, disable printer server */
+	//default_server_announce |= SV_TYPE_PRINTQ_SERVER;
+    /*  removed end pling 07/16/2009 */
 
 	switch (lp_announce_as()) {
 		case ANNOUNCE_AS_NT_SERVER:

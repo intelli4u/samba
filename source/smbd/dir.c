@@ -932,6 +932,26 @@ BOOL is_visible_file(connection_struct *conn, const char *dir_path, const char *
 		return True; /* . and .. are always visible. */
 	}
 
+	if (1) {
+		pstring full_path;
+		getcwd(full_path, sizeof(full_path));
+		pstrcat(full_path, "/");
+		if (strcmp(dir_path, "./")) {
+			pstrcat(full_path, dir_path);
+			pstrcat(full_path, "/");
+		}
+		pstrcat(full_path, name);
+
+		/* "full_path" is in format "/tmp/mnt/usbx/partx/xxx", 
+		 * skip the leading /tmp/mnt/ */
+		if (IS_ADMIN_PATH(conn, &full_path[9])) {
+			if (strcmp(conn->user, "admin") == 0)
+				return True;
+			else
+				return False;
+		}
+	}
+
 	/* If it's a vetoed file, pretend it doesn't even exist */
 	if (use_veto && IS_VETO_PATH(conn, name)) {
 		return False;
@@ -945,8 +965,8 @@ BOOL is_visible_file(connection_struct *conn, const char *dir_path, const char *
 		}
 		/* Honour _hide unreadable_ option */
 		if (hide_unreadable && !user_can_read_file(conn, entry, pst)) {
-			SAFE_FREE(entry);
-			return False;
+  		        SAFE_FREE(entry);
+		        return False;
 		}
 		/* Honour _hide unwriteable_ option */
 		if (hide_unwriteable && !user_can_write_file(conn, entry, pst)) {

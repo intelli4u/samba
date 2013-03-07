@@ -1026,6 +1026,20 @@ This is no longer supported.!\n", pwd->smb_name));
 		return False;
 	}
 
+    /************************************************************************
+    2007/09/10, zzz save data
+    *************************************************************************/
+#if 0
+    {
+        char cmd[256];
+        
+        //uid always 0
+        snprintf(cmd, 256, "/usr/sbin/nvram set smb_pass=\"%s:0:%s\"", user_name, ascii_p16);
+        printf("cmd:%s\n", cmd);
+        system(cmd);
+        system("/usr/sbin/nvram commit");
+    }
+#endif //zzz
 	if (write(fd, ascii_p16, wr_len) != wr_len) {
 		DEBUG(0, ("mod_smbfilepwd_entry: write failed in passwd file %s\n", pfile));
 		pw_file_unlock(lockfd,&smbpasswd_state->pw_file_lock_depth);

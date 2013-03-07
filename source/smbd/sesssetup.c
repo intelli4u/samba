@@ -25,7 +25,8 @@
 
 uint32 global_client_caps = 0;
 
-static struct auth_ntlmssp_state *global_ntlmssp_state;
+//static struct auth_ntlmssp_state *global_ntlmssp_state;
+static struct auth_ntlmssp_state *global_ntlmssp_state = NULL;
 
 /*
   on a logon error possibly map the error to success if "map to guest"
@@ -336,7 +337,8 @@ static int reply_spnego_kerberos(connection_struct *conn,
 
 static BOOL reply_spnego_ntlmssp(connection_struct *conn, char *inbuf, char *outbuf,
 				 AUTH_NTLMSSP_STATE **auth_ntlmssp_state,
-				 DATA_BLOB *ntlmssp_blob, NTSTATUS nt_status) 
+				 DATA_BLOB *ntlmssp_blob, NTSTATUS nt_status,
+				 BOOL wrap) 
 {
 	BOOL ret;
 	DATA_BLOB response;
@@ -389,10 +391,15 @@ static BOOL reply_spnego_ntlmssp(connection_struct *conn, char *inbuf, char *out
 		}
 	}
 
+	if (wrap) {
         response = spnego_gen_auth_response(ntlmssp_blob, nt_status, OID_NTLMSSP);
+	} else {
+		response = *ntlmssp_blob;
+	}
 	ret = reply_sesssetup_blob(conn, outbuf, response, nt_status);
-	data_blob_free(&response);
-
+   	if (wrap) 
+		data_blob_free(&response);
+	
 	/* NT_STATUS_MORE_PROCESSING_REQUIRED from our NTLMSSP code tells us,
 	   and the other end, that we are not finished yet. */
 
@@ -470,8 +477,8 @@ static int reply_spnego_negotiate(connection_struct *conn,
 	data_blob_free(&secblob);
 
 	reply_spnego_ntlmssp(conn, inbuf, outbuf, &global_ntlmssp_state,
-			     &chal, nt_status);
-		
+			     &chal, nt_status, True);
+	
 	data_blob_free(&chal);
 
 	/* already replied */
@@ -507,7 +514,7 @@ static int reply_spnego_auth(connection_struct *conn, char *inbuf, char *outbuf,
 	data_blob_free(&auth);
 
 	reply_spnego_ntlmssp(conn, inbuf, outbuf, &global_ntlmssp_state,
-			     &auth_reply, nt_status);
+			     &auth_reply, nt_status, True);
 		
 	data_blob_free(&auth_reply);
 
@@ -587,6 +594,28 @@ static int reply_sesssetup_and_X_spnego(connection_struct *conn, char *inbuf,
 		ret = reply_spnego_auth(conn, inbuf, outbuf, length, bufsize, blob1);
 		data_blob_free(&blob1);
 		return ret;
+	}
+
+	if (strncmp((char *)(blob1.data), "NTLMSSP", 7) == 0) {
+		DATA_BLOB chal;
+		NTSTATUS nt_status;
+		if (!global_ntlmssp_state) {
+	    	nt_status = auth_ntlmssp_start(&global_ntlmssp_state);
+			if (!NT_STATUS_IS_OK(nt_status)) {
+				return ERROR_NT(nt_status_squash(nt_status));
+			}
+		}
+
+		nt_status = auth_ntlmssp_update(global_ntlmssp_state,
+						blob1, &chal);
+		
+		data_blob_free(&blob1);
+		
+		reply_spnego_ntlmssp(conn, inbuf, outbuf, 
+					   &global_ntlmssp_state,
+					   &chal, nt_status, False);
+		data_blob_free(&chal);
+		return -1;
 	}
 
 	/* what sort of packet is this? */
@@ -807,6 +836,17 @@ int reply_sesssetup_and_X(connection_struct *conn, char *inbuf,char *outbuf,
 
 	if (SVAL(inbuf,smb_vwv4) == 0) {
 		setup_new_vc_session();
+	}
+
+	/*If all shared folders are 'All - no password',
+	 then no need to login for "HTTP", "FTP" or samba.*/
+    FILE *fp = NULL;
+    fp = fopen("/tmp/all_no_password","r");
+	if (fp != NULL) {
+	    fclose(fp);
+	    DEBUG(0, ("all_no_password, sesssetup.c\n"));
+        if (strcmp(user, "guest") && strcmp(user, "admin"))
+            fstrcpy(user, "guest");
 	}
 
 	DEBUG(3,("sesssetupX:name=[%s]\\[%s]@[%s]\n", domain, user, get_remote_machine_name()));

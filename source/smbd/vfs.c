@@ -478,11 +478,19 @@ ssize_t vfs_write_data(files_struct *fsp,const char *buffer,size_t N)
 	return (ssize_t)total;
 }
 
+/*  modified start pling 11/18/2009 */
+//ssize_t vfs_pwrite_data(files_struct *fsp,const char *buffer,
+//                size_t N, SMB_OFF_T offset)
 ssize_t vfs_pwrite_data(files_struct *fsp,const char *buffer,
-                size_t N, SMB_OFF_T offset)
+                size_t N, SMB_BIG_UINT offset)
+/*  modified end pling 11/18/2009 */
 {
-	size_t total=0;
-	ssize_t ret;
+    /*  modified start pling 11/18/2009 */
+	//size_t total=0;
+	//ssize_t ret;
+	SMB_BIG_UINT total=0;
+	SMB_BIG_UINT ret;
+    /*  modified end pling 11/18/2009 */
 
 	while (total < N) {
 		ret = SMB_VFS_PWRITE(fsp, fsp->fd, buffer + total,
@@ -519,10 +527,17 @@ int vfs_allocate_file_space(files_struct *fsp, SMB_BIG_UINT len)
 
 	DEBUG(10,("vfs_allocate_file_space: file %s, len %.0f\n", fsp->fsp_name, (double)len ));
 
+    /*  removed start pling 11/18/2009 */
+    /* Don't check negative length, to avoid "disk full" error 
+     * when copy file from Vista/Win7 to USB.
+     */
+#if 0
 	if (((SMB_OFF_T)len) < 0) {
 		DEBUG(0,("vfs_allocate_file_space: %s negative len requested.\n", fsp->fsp_name ));
 		return -1;
 	}
+#endif
+    /*  removed end pling 11/18/2009 */
 
 	ret = SMB_VFS_FSTAT(fsp,fsp->fd,&st);
 	if (ret == -1)
@@ -580,8 +595,22 @@ int vfs_set_filelen(files_struct *fsp, SMB_OFF_T len)
 	release_level_2_oplocks_on_change(fsp);
 	DEBUG(10,("vfs_set_filelen: ftruncate %s to len %.0f\n", fsp->fsp_name, (double)len));
 	flush_write_cache(fsp, SIZECHANGE_FLUSH);
-	if ((ret = SMB_VFS_FTRUNCATE(fsp, fsp->fd, len)) != -1)
-		set_filelen_write_cache(fsp, len);
+
+	/*  modified start, zacker, 07/07/2011 */
+        /* Workaround: ftruncate is slow in VFAT, just do it
+	 * for small (16MB) file editing, to workaround the
+	 * edit problem with notepad in Windows
+	 * */
+        if (len > 0 && len < 0x1000000) {
+               if ((ret = SMB_VFS_FTRUNCATE(fsp, fsp->fd, len)) != -1)
+                   set_filelen_write_cache(fsp, len);
+               } else {
+                   ret = 0;
+        }
+        /*  modified end, zacker, 07/07/2011 */
+
+        ret = 0;
+        /*  modified end , 04/01/2009 */
 
 	return ret;
 }

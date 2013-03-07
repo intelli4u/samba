@@ -57,6 +57,15 @@ static void smbd_set_server_fd(int fd)
 	client_setfd(fd);
 }
 
+
+
+/* , added by MJ., 2010.03.25, for making a shared memory. */
+#ifdef MAX_USB_ACCESS
+CON_STATISTIC *con_st = NULL;
+#endif
+/* , ended by MJ., 2010.03.25, */
+
+
 /****************************************************************************
  Terminate signal.
 ****************************************************************************/
@@ -713,7 +722,35 @@ void build_options(BOOL screen);
 	POPT_COMMON_SAMBA
 	{ NULL }
 	};
+#ifdef MAX_USB_ACCESS
+    /* , added by MJ.,2010.03.25, for counting the number of connections.*/
+    int segment_id;
+    FILE *shmid_fp = fopen("/tmp/shm_id", "r");
 
+    if(shmid_fp != NULL)
+    {
+        fscanf(shmid_fp, "%d", &segment_id);
+        /* printf("segment_id:%d\n", segment_id); */
+        fclose(shmid_fp);
+    }
+    else{
+        printf("/tmp/shm_id open failed.\n");
+        segment_id = -1;
+        //exit (1);
+    }
+    /* attach the shared memory segment, at a different address. */
+    if(segment_id != -1){
+        con_st = (CON_STATISTIC*) shmat (segment_id, (void*) 0x5000000, 0);
+        dbgtext("->total con num: %d, by smbd.\n", con_st->num);
+    }
+    else
+        con_st = NULL;
+
+    /* We don't detach the shared memory segment. */
+    //shmdt (con_st); 
+
+    /* , ended by MJ., 2010.03.25. */
+#endif // End of MAX_USB_ACCESS
 #ifdef HAVE_SET_AUTH_PARAMETERS
 	set_auth_parameters(argc,argv);
 #endif

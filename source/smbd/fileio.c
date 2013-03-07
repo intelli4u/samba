@@ -28,8 +28,10 @@ static BOOL setup_write_cache(files_struct *, SMB_OFF_T);
  Read from write cache if we can.
 ****************************************************************************/
 
-
-static BOOL read_from_write_cache(files_struct *fsp,char *data,SMB_OFF_T pos,size_t n)
+/*  modified start pling 11/25/2009 */
+//static BOOL read_from_write_cache(files_struct *fsp,char *data,SMB_OFF_T pos,size_t n)
+static BOOL read_from_write_cache(files_struct *fsp,char *data,SMB_BIG_UINT pos,size_t n)
+/*  modified end pling 11/25/2009 */
 {
 	write_cache *wcp = fsp->wcp;
 
@@ -50,7 +52,10 @@ static BOOL read_from_write_cache(files_struct *fsp,char *data,SMB_OFF_T pos,siz
  Read from a file.
 ****************************************************************************/
 
-ssize_t read_file(files_struct *fsp,char *data,SMB_OFF_T pos,size_t n)
+/*  modified start pling 11/25/2009 */
+//ssize_t read_file(files_struct *fsp,char *data,SMB_OFF_T pos,size_t n)
+ssize_t read_file(files_struct *fsp,char *data,SMB_BIG_UINT pos,size_t n)
+/*  modified end pling 11/25/2009 */
 {
 	ssize_t ret=0,readret;
 
@@ -113,7 +118,10 @@ static unsigned int allocated_write_caches;
  *Really* write to a file.
 ****************************************************************************/
 
-static ssize_t real_write_file(files_struct *fsp,char *data,SMB_OFF_T pos, size_t n)
+/*  modified start pling 11/18/2009 */
+//static ssize_t real_write_file(files_struct *fsp,char *data,SMB_OFF_T pos, size_t n)
+static ssize_t real_write_file(files_struct *fsp,char *data, SMB_BIG_UINT pos, size_t n)
+/*  modified end pling 11/18/2009 */
 {
 	ssize_t ret;
 
@@ -164,7 +172,10 @@ static ssize_t real_write_file(files_struct *fsp,char *data,SMB_OFF_T pos, size_
 write to a file
 ****************************************************************************/
 
-ssize_t write_file(files_struct *fsp, char *data, SMB_OFF_T pos, size_t n)
+/*  modified start pling 11/18/2009 */
+//ssize_t write_file(files_struct *fsp, char *data, SMB_OFF_T pos, size_t n)
+ssize_t write_file(files_struct *fsp, char *data, SMB_BIG_UINT pos, size_t n)
+/*  modified end pling 11/18/2009 */
 {
 	write_cache *wcp = fsp->wcp;
 	ssize_t total_written = 0;

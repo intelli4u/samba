@@ -588,7 +588,10 @@ int reply_ntcreate_and_X(connection_struct *conn,
 	   reply bits separately. */
 	int oplock_request = 0;
 	int fmode=0,rmode=0;
-	SMB_OFF_T file_len = 0;
+    /*  modified start pling 11/25/2009 */
+	//SMB_OFF_T file_len = 0;
+	SMB_BIG_UINT file_len = 0;
+    /*  modified end pling 11/25/2009 */
 	SMB_STRUCT_STAT sbuf;
 	int smb_action = 0;
 	BOOL bad_path = False;
@@ -913,7 +916,10 @@ create_options = 0x%x root_dir_fid = 0x%x\n", flags, desired_access, file_attrib
 		
 	restore_case_semantics(conn, file_attributes);
 		
-	file_len = sbuf.st_size;
+    /*  modified start pling 11/25/2009 */
+	//file_len = sbuf.st_size;
+	file_len = get_real_file_size(&sbuf);
+    /*  modified end pling 11/25/2009 */
 	fmode = dos_mode(conn,fname,&sbuf);
 	if(fmode == 0)
 		fmode = FILE_ATTRIBUTE_NORMAL;
@@ -924,6 +930,7 @@ create_options = 0x%x root_dir_fid = 0x%x\n", flags, desired_access, file_attrib
 	} 
 	
 	/* Save the requested allocation size. */
+	if (smb_action == FILE_WAS_CREATED || smb_action == FILE_WAS_OVERWRITTEN) {
 	allocation_size = (SMB_BIG_UINT)IVAL(inbuf,smb_ntcreate_AllocationSize);
 #ifdef LARGE_SMB_OFF_T
 	allocation_size |= (((SMB_BIG_UINT)IVAL(inbuf,smb_ntcreate_AllocationSize + 4)) << 32);
@@ -943,6 +950,7 @@ create_options = 0x%x root_dir_fid = 0x%x\n", flags, desired_access, file_attrib
 		}
 	} else {
 		fsp->initial_allocation_size = smb_roundup(fsp->conn,(SMB_BIG_UINT)file_len);
+	}
 	}
 
 	/* 
@@ -1012,9 +1020,17 @@ create_options = 0x%x root_dir_fid = 0x%x\n", flags, desired_access, file_attrib
 	p += 8;
 	SIVAL(p,0,fmode); /* File Attributes. */
 	p += 4;
-	SOFF_T(p, 0, get_allocation_size(conn,fsp,&sbuf));
+    /*  modified start pling 11/25/2009 */
+    /* Use 64 bit file size to support large files */
+	//SOFF_T(p, 0, get_allocation_size(conn,fsp,&sbuf));
+	SOFF64_T(p, 0, get_allocation_size(conn,fsp,&sbuf));
+    /*  modified end pling 11/25/2009 */
 	p += 8;
-	SOFF_T(p,0,file_len);
+    /*  modified start pling 11/25/2009 */
+    /* Use 64 bit file size to support large files */
+	//SOFF_T(p,0,file_len);
+    SOFF64_T(p,0,file_len);
+    /*  modified end pling 11/25/2009 */
 	p += 8;
 	if (flags & EXTENDED_RESPONSE_REQUIRED)
 		SSVAL(p,2,0x7);

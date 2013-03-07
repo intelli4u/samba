@@ -541,7 +541,8 @@ static connection_struct *make_connection_snum(int snum, user_struct *vuser,
 		string_set(&conn->connectpath,s);
 	}
 
-/* ROOT Activities: */	
+#if 0	
+        /* ROOT Activities: */	
 	/* check number of connections */
 	if (!claim_connection(conn,
 			      lp_servicename(SNUM(conn)),
@@ -552,6 +553,17 @@ static connection_struct *make_connection_snum(int snum, user_struct *vuser,
 		*status = NT_STATUS_INSUFFICIENT_RESOURCES;
 		return NULL;
 	}  
+#endif
+	
+        if (!claim_connection(conn,
+             lp_servicename(SNUM(conn)),
+             lp_max_connections(SNUM(conn)),
+                                 False,0)) {
+                DEBUG(1,("too many connections - rejected\n"));
+                conn_free(conn);
+                *status = NT_STATUS_INSUFFICIENT_RESOURCES;
+                return NULL;
+        }
 
 	/* Preexecs are done here as they might make the dir we are to ChDir to below */
 	/* execute any "root preexec = " line */
@@ -621,7 +633,8 @@ static connection_struct *make_connection_snum(int snum, user_struct *vuser,
 	}
 	
 	string_set(&conn->origpath,conn->connectpath);
-	
+
+
 #if SOFTLINK_OPTIMISATION
 	/* resolve any soft links early if possible */
 	if (vfs_ChDir(conn,conn->connectpath) == 0) {
@@ -857,4 +870,5 @@ void close_cnum(connection_struct *conn, uint16 vuid)
 	}
 
 	conn_free(conn);
+
 }

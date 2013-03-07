@@ -1,5 +1,5 @@
 /* 
-   Unix SMB/CIFS implementation.
+  Unix SMB/CIFS implementation.
    file opening and share modes
    Copyright (C) Andrew Tridgell 1992-1998
    Copyright (C) Jeremy Allison 2001-2004
@@ -34,11 +34,12 @@ struct dev_inode_bundle {
 /****************************************************************************
  fd support routines - attempt to do a dos_open.
 ****************************************************************************/
-
 static int fd_open(struct connection_struct *conn, const char *fname, 
 		   int flags, mode_t mode)
 {
 	int fd;
+    int accmode = (flags & O_ACCMODE);
+
 #ifdef O_NOFOLLOW
 	if (!lp_symlinks(SNUM(conn)))
 		flags |= O_NOFOLLOW;
@@ -48,6 +49,67 @@ static int fd_open(struct connection_struct *conn, const char *fname,
 
 	DEBUG(10,("fd_open: name %s, flags = 0%o mode = 0%o, fd = %d. %s\n", fname,
 		flags, (int)mode, fd, (fd == -1) ? strerror(errno) : "" ));
+
+#if 1
+        /* , added by MJ., 2010.04.09, for locking files against access of other programs. */
+        int ret;
+        struct flock my_lock;
+        my_lock.l_type = F_RDLCK;
+        my_lock.l_whence = SEEK_SET; /* modified for failure of locking */
+        my_lock.l_start = 0;
+        my_lock.l_len = 0;
+
+        if(accmode == O_RDONLY)
+        {
+            DEBUG(10, ("read only: %d\n", fd));
+            /*  modified start pling 08/26/2010 */
+            /* WNR3500L TD#159: Don't do fcntl if fd is not valid */
+            //if(!fcntl(fd, F_GETLK, &my_lock) && fd != -1)
+            if(fd >= 0 && !fcntl(fd, F_GETLK, &my_lock))
+            /*  modified end pling 08/26/2010 */
+            {
+                DEBUG(10, ("my_lock: %d\n", my_lock.l_type));
+                if(my_lock.l_type != F_UNLCK){
+                    DEBUG(10, ("This file is locked, %d\n", fd));
+                }else{
+                    DEBUG(10, ("This file unlocked, %d\n", fd));
+                    my_lock.l_type = F_RDLCK;
+                    if(fcntl(fd, F_SETLK, &my_lock))
+                    {
+                        DEBUG(10, ("Set RDLCK failed.\n"));
+                    }
+                    else
+                        DEBUG(10, ("Set RDLCK ok.\n"));
+                }
+            }
+        }
+        else
+        {
+            DEBUG(10, ("write mode: %d\n", fd));
+            my_lock.l_type = F_WRLCK;
+            if(fd >= 0)
+            {
+                ret = fcntl(fd, F_GETLK, &my_lock);
+                if(my_lock.l_type == 2)
+                {
+                    DEBUG(10, ("This file unlocked, %d\n", fd));
+                    my_lock.l_type = F_WRLCK;
+                    if(fcntl(fd, F_SETLK, &my_lock))
+                        DEBUG(10, ("Set WRLCK fauled.\n"));
+                    else
+                        DEBUG(10, ("Set WRLCK ok.\n"));
+
+                }else{
+                    DEBUG(10, ("This file locked, %d\n", fd));
+                    close(fd); //close fd.
+                    fd = -1;
+                }
+            }else{
+                DEBUG(10, ("no file exists, %d\n", fd));
+            }
+        }
+        /* , ended by MJ., 2010.04.09 */
+#endif
 
 	return fd;
 }
@@ -60,6 +122,9 @@ int fd_close(struct connection_struct *conn, files_struct *fsp)
 {
 	if (fsp->fd == -1)
 		return 0; /* what we used to call a stat open. */
+
+    DEBUG(10, ("file closed, :%d\n", fsp->fd));
+
 	return fd_close_posix(conn, fsp);
 }
 
@@ -171,8 +236,52 @@ static BOOL open_file(files_struct *fsp,connection_struct *conn,
 			return False;
 		}
 
+        /* , ended by MJ., 2010.03.23, for locking files accessed by other programs. */
+#if 0
+        if(accmode == O_RDONLY)
+        {
+            //smb_debug("read only.");
+            fsp->fd = fd_open(conn, fname, local_flags, mode);
+        }
+        else
+        {
+            //smb_debug("write mode.");
+            int fd = -1;
+            struct flock my_lock;
+            my_lock.l_type = F_WRLCK;
+            my_lock.l_whence = 0;
+            my_lock.l_start = 0;
+            my_lock.l_len = 0;
+            /* , added by MJ. 2010.03.23 */
+            //smb_debug(fname);
+            fd = open(fname, O_RDONLY);
+            if(fd >= 0)
+            {
+                int ret;
+                char buf[256];
+                ret = fcntl(fd, F_GETLK, &my_lock);
+                if(my_lock.l_type == 2){
+                    dbgtext("unlock\n");
+                    close(fd); //close fd.
+                    fsp->fd = fd_open(conn, fname, local_flags, mode);
+                }
+                else{
+                    dbgtext("locked\n");
+                    fsp->fd = -1;
+                    close(fd); //close fd.
+                }
+            }
+            else{
+                dbgtext("no file exists\n");
+                fsp->fd = fd_open(conn, fname, local_flags, mode);
+            }
+        }
+        /* , ended by MJ., 2010.03.23 */
+#else
+        fsp->fd = fd_open(conn, fname, local_flags, mode);
+#endif
 		/* Actually do the open */
-		fsp->fd = fd_open(conn, fname, local_flags, mode);
+		//fsp->fd = fd_open(conn, fname, local_flags, mode);
 		if (fsp->fd == -1)  {
 			DEBUG(3,("Error opening file %s (%s) (local_flags=%d) (flags=%d)\n",
 				 fname,strerror(errno),local_flags,flags));

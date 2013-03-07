@@ -22,6 +22,12 @@
 
 static TDB_CONTEXT *tdb;
 
+#ifdef MAX_USB_ACCESS
+extern CON_STATISTIC *con_st;
+extern int binary_semaphore_post (int semid);
+extern int binary_semaphore_wait (int semid);
+#endif
+
 /****************************************************************************
  Return the connection tdb context (used for message send all).
 ****************************************************************************/
@@ -115,7 +121,7 @@ static int count_fn( TDB_CONTEXT *the_tdb, TDB_DATA kbuf, TDB_DATA dbuf, void *u
 	}
 
 	if (strequal(crec.name, cs->name))
-		cs->curr_connections++;
+	      cs->curr_connections++;
 
 	return 0;
 }
@@ -129,7 +135,15 @@ BOOL claim_connection(connection_struct *conn, const char *name,int max_connecti
 	struct connections_key key;
 	struct connections_data crec;
 	TDB_DATA kbuf, dbuf;
+    struct count_stat cs;
 
+#ifdef MAX_USB_ACCESS	
+	if(con_st != NULL)
+    {
+		if ( ( con_st->num ) >= MAX_CON_NUM)
+	    	return False;
+	}
+#endif	    	
 	if (!tdb)
 		tdb = tdb_open_log(lock_path("connections.tdb"), 0, TDB_CLEAR_IF_FIRST|TDB_DEFAULT, 
 			       O_RDWR | O_CREAT, 0644);
@@ -142,7 +156,7 @@ BOOL claim_connection(connection_struct *conn, const char *name,int max_connecti
 	 */
 
 	if (max_connections > 0) {
-		struct count_stat cs;
+		//struct count_stat cs;
 
 		cs.mypid = sys_getpid();
 		cs.curr_connections = 0;

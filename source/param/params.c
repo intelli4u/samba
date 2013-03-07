@@ -285,7 +285,11 @@ static BOOL Section( myFILE *InFile, BOOL (*sfunc)(const char *) )
 				break;
 
 			default: /* All else are a valid name chars.   */
-				if(isspace( c )) {
+                /*  modified start pling 10/19/2009 */
+                /* Don't eat space inside a share name */
+				//if(isspace( c )) {
+				if (0) {
+                /*  modified end pling 10/19/2009 */
 					/* One space per whitespace region. */
 					bufr[end] = ' ';
 					i = end + 1;

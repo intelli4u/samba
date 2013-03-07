@@ -21,6 +21,59 @@
 
 #include "includes.h"
 
+#ifdef MAX_USB_ACCESS
+/* Obtain a binary semaphore¡¦s ID, allocating if necessary. */
+int binary_semaphore_allocation (key_t key, int sem_flags)
+{
+    return semget (key, 1, sem_flags);
+}
+/* Deallocate a binary semaphore. All users must have finished their
+use. Returns -1 on failure. */
+int binary_semaphore_deallocate (int semid)
+{
+    union semun ignored_argument;
+    return semctl (semid, 1, IPC_RMID, ignored_argument);
+}
+
+/* Initialize a binary semaphore with a value of 1. */
+int binary_semaphore_initialize (int semid)
+{
+    union semun argument;
+    unsigned short values[1];
+    values[0] = 1;
+    argument.array = values;
+    return semctl (semid, 0, SETALL, argument);
+}
+/* Wait on a binary semaphore. Block until the semaphore value is positive, then
+decrement it by 1. */
+int binary_semaphore_wait (int semid)
+{
+    struct sembuf operations[1];
+    /* Use the first (and only) semaphore. */
+    operations[0].sem_num = 0;
+    /* Decrement by 1. */
+    operations[0].sem_op = -1;
+    /* Permit undo¡¦ing. */
+    operations[0].sem_flg = SEM_UNDO;
+    return semop (semid, operations, 1);
+}
+
+/* Post to a binary semaphore: increment its value by 1.
+This returns immediately. */
+int binary_semaphore_post (int semid)
+{
+    struct sembuf operations[1];
+    /* Use the first (and only) semaphore. */
+    operations[0].sem_num = 0;
+    /* Increment by 1. */
+    operations[0].sem_op = 1;
+    /* Permit undo¡¦ing. */
+    operations[0].sem_flg = SEM_UNDO;
+    return semop (semid, operations, 1);
+}
+#endif //End of MAX_USB_ACCESS
+
+
 /* The connections bitmap is expanded in increments of BITMAP_BLOCK_SZ. The
  * maximum size of the bitmap is the largest positive integer, but you will hit
  * the "max connections" limit, looong before that.
@@ -96,7 +149,20 @@ connection_struct *conn_new(void)
 	TALLOC_CTX *mem_ctx;
 	connection_struct *conn;
 	int i;
-        int find_offset = 1;
+    int find_offset = 1;
+#if 0
+    extern CON_STATISTIC *con_st;
+
+    if(con_st != NULL){
+        dbgtext("->total con num: %d, %s\n", con_st->num, __FUNCTION__);
+        binary_semaphore_wait (con_st->sem_id);
+        if(con_st->num >= MAX_CON_NUM){
+            binary_semaphore_post (con_st->sem_id); 
+            return NULL;
+        }
+        binary_semaphore_post (con_st->sem_id);
+    }
+#endif
 
 find_again:
 	i = bitmap_find(bmap, find_offset);
@@ -129,11 +195,13 @@ find_again:
 
 	if ((mem_ctx=talloc_init("connection_struct"))==NULL) {
 		DEBUG(0,("talloc_init(connection_struct) failed!\n"));
+
 		return NULL;
 	}
 
 	if ((conn=TALLOC_ZERO_P(mem_ctx, connection_struct))==NULL) {
 		DEBUG(0,("talloc_zero() failed!\n"));
+
 		return NULL;
 	}
 	conn->mem_ctx = mem_ctx;
