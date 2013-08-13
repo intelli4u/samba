@@ -508,7 +508,7 @@ static BOOL init_srv_share_info_ctr(pipes_struct *p, SRV_SHARE_INFO_CTR *ctr,
 
 	/* Count the number of entries. */	
 	for (snum = 0; snum < num_services; snum++) {
-	        /* , CSW @ chec whether the pr iv */	 
+	        /* foxconn, CSW @ chec whether the pr iv */	 
 		if ( (lp_browseable(snum) ||  p->conn->admin_user ) 
 		      && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) )
 		     num_entries++;

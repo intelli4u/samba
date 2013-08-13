@@ -193,8 +193,9 @@ int vfswrap_open(vfs_handle_struct *handle, connection_struct *conn, const char 
 {
 	int result;
 
-
-#if 0 //def MAX_USB_ACCESS  
+	/* Foxconn added start pling 07/12/2012 */
+	/* Do connection count check first */
+#if 0 //def MAX_USB_ACCESS  // pling removed 07/18/2012, In Win7, copy a folder with more than 15 files may have problems
 	if(con_st != NULL)
 	{
 		if ( ( con_st->num ) >= MAX_CON_NUM)
@@ -202,12 +203,14 @@ int vfswrap_open(vfs_handle_struct *handle, connection_struct *conn, const char 
 	}
 	//cprintf("*******%s(%d):con_st->num=%d\n", __FUNCTION__, __LINE__, con_st->num);
 #endif
+	/* Foxconn added end pling 07/12/2012 */
 
 	START_PROFILE(syscall_open);
 	result = sys_open(fname, flags, mode);
 	END_PROFILE(syscall_open);
 
-
+	/* Foxconn modified start pling 07/12/2012 */
+	/* Increment counter if open is successful */
 #if 0 //def MAX_USB_ACCESS  // pling removed 07/18/2012, In Win7, copy a folder with more than 15 files may have problems
 	if (result != -1 && con_st != NULL)
 	{
@@ -216,6 +219,7 @@ int vfswrap_open(vfs_handle_struct *handle, connection_struct *conn, const char 
 		binary_semaphore_post (con_st->sem_id);
 	}
 #endif
+	/* Foxconn modified end pling 07/12/2012 */
 
 	return result;
 }
@@ -230,8 +234,11 @@ int vfswrap_close(vfs_handle_struct *handle, files_struct *fsp, int fd)
 	END_PROFILE(syscall_close);
 
 #if 0 //def MAX_USB_ACCESS  // pling removed 07/18/2012, In Win7, copy a folder with more than 15 files may have problems
+	/* Foxconn modified start pling 07/12/2012 */
+	/* Increment counter if close is successful */
 	//if(con_st != NULL)
 	if (result != -1 && con_st != NULL)
+	/* Foxconn modified end pling 07/12/2012 */
     {
         binary_semaphore_wait (con_st->sem_id);
         --(con_st->num);
@@ -253,10 +260,12 @@ ssize_t vfswrap_read(vfs_handle_struct *handle, files_struct *fsp, int fd, void 
 	return result;
 }
 
+/* Foxconn modified start pling 11/18/2009 */
 //ssize_t vfswrap_pread(vfs_handle_struct *handle, files_struct *fsp, int fd, void *data,
 //			size_t n, SMB_OFF_T offset)
 ssize_t vfswrap_pread(vfs_handle_struct *handle, files_struct *fsp, int fd, void *data,
 			size_t n, SMB_BIG_UINT offset)
+/* Foxconn modified end pling 11/18/2009 */
 {
 	ssize_t result;
 
@@ -309,10 +318,12 @@ ssize_t vfswrap_write(vfs_handle_struct *handle, files_struct *fsp, int fd, cons
 	return result;
 }
 
+/* Foxconn modified start pling 11/18/2009 */
 //ssize_t vfswrap_pwrite(vfs_handle_struct *handle, files_struct *fsp, int fd, const void *data,
 //			size_t n, SMB_OFF_T offset)
 ssize_t vfswrap_pwrite(vfs_handle_struct *handle, files_struct *fsp, int fd, const void *data,
 			size_t n, SMB_BIG_UINT offset)
+/* Foxconn modified end pling 11/18/2009 */
 {
 	ssize_t result;
 
@@ -350,8 +361,10 @@ ssize_t vfswrap_pwrite(vfs_handle_struct *handle, files_struct *fsp, int fd, con
 	return result;
 }
 
+/* Foxconn modified start pling 11/18/2009 */
 //SMB_OFF_T vfswrap_lseek(vfs_handle_struct *handle, files_struct *fsp, int filedes, SMB_OFF_T offset, int whence)
 SMB_BIG_UINT vfswrap_lseek(vfs_handle_struct *handle, files_struct *fsp, int filedes, SMB_BIG_UINT offset, int whence)
+/* Foxconn modified end pling 11/18/2009 */
 {
 	//SMB_OFF_T result = 0;
 	SMB_BIG_UINT result = 0;

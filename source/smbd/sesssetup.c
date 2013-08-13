@@ -25,8 +25,11 @@
 
 uint32 global_client_caps = 0;
 
+/* Foxconn modified start pling 12/29/2011 */
+/* Fix Android partial auth issue. */
 //static struct auth_ntlmssp_state *global_ntlmssp_state;
 static struct auth_ntlmssp_state *global_ntlmssp_state = NULL;
+/* Foxconn modified end pling 12/29/2011 */
 
 /*
   on a logon error possibly map the error to success if "map to guest"
@@ -335,10 +338,13 @@ static int reply_spnego_kerberos(connection_struct *conn,
  End the NTLMSSP exchange context if we are OK/complete fail
 ***************************************************************************/
 
+/* Foxconn modified start pling 12/29/2011 */
+/* Fix Android partial auth issue. */
 static BOOL reply_spnego_ntlmssp(connection_struct *conn, char *inbuf, char *outbuf,
 				 AUTH_NTLMSSP_STATE **auth_ntlmssp_state,
 				 DATA_BLOB *ntlmssp_blob, NTSTATUS nt_status,
 				 BOOL wrap) 
+/* Foxconn modified end pling 12/29/2011 */
 {
 	BOOL ret;
 	DATA_BLOB response;
@@ -391,6 +397,8 @@ static BOOL reply_spnego_ntlmssp(connection_struct *conn, char *inbuf, char *out
 		}
 	}
 
+	/* Foxconn modified start pling 12/29/2011 */
+	/* Fix Android partial auth issue. */
 	if (wrap) {
         response = spnego_gen_auth_response(ntlmssp_blob, nt_status, OID_NTLMSSP);
 	} else {
@@ -399,6 +407,7 @@ static BOOL reply_spnego_ntlmssp(connection_struct *conn, char *inbuf, char *out
 	ret = reply_sesssetup_blob(conn, outbuf, response, nt_status);
    	if (wrap) 
 		data_blob_free(&response);
+	/* Foxconn modified end pling 12/29/2011 */
 	
 	/* NT_STATUS_MORE_PROCESSING_REQUIRED from our NTLMSSP code tells us,
 	   and the other end, that we are not finished yet. */
@@ -476,8 +485,11 @@ static int reply_spnego_negotiate(connection_struct *conn,
 
 	data_blob_free(&secblob);
 
+	/* Foxconn modified start pling 12/29/2011 */
+	/* Fix Android partial auth issue. */
 	reply_spnego_ntlmssp(conn, inbuf, outbuf, &global_ntlmssp_state,
 			     &chal, nt_status, True);
+	/* Foxconn modified end pling 12/29/2011 */
 	
 	data_blob_free(&chal);
 
@@ -513,8 +525,11 @@ static int reply_spnego_auth(connection_struct *conn, char *inbuf, char *outbuf,
 
 	data_blob_free(&auth);
 
+	/* Foxconn modified start pling 12/29/2011 */
+	/* Fix Android partial auth issue. */
 	reply_spnego_ntlmssp(conn, inbuf, outbuf, &global_ntlmssp_state,
 			     &auth_reply, nt_status, True);
+	/* Foxconn modified start pling 12/29/2011 */
 		
 	data_blob_free(&auth_reply);
 
@@ -596,6 +611,9 @@ static int reply_sesssetup_and_X_spnego(connection_struct *conn, char *inbuf,
 		return ret;
 	}
 
+	/* Foxconn modified start pling 12/29/2011 */
+	/* Fix Android partial auth issue.
+	 * Port from Samba 3.0.24 (used by WNDR3800) */
 	if (strncmp((char *)(blob1.data), "NTLMSSP", 7) == 0) {
 		DATA_BLOB chal;
 		NTSTATUS nt_status;
@@ -617,6 +635,7 @@ static int reply_sesssetup_and_X_spnego(connection_struct *conn, char *inbuf,
 		data_blob_free(&chal);
 		return -1;
 	}
+    /* Foxconn added end pling 12/29/2011 */
 
 	/* what sort of packet is this? */
 	DEBUG(1,("Unknown packet in reply_sesssetup_and_X_spnego\n"));
@@ -838,6 +857,7 @@ int reply_sesssetup_and_X(connection_struct *conn, char *inbuf,char *outbuf,
 		setup_new_vc_session();
 	}
 
+    /* Foxconn added start pling 11/30/2009 */
 	/*If all shared folders are 'All - no password',
 	 then no need to login for "HTTP", "FTP" or samba.*/
     FILE *fp = NULL;
@@ -848,6 +868,7 @@ int reply_sesssetup_and_X(connection_struct *conn, char *inbuf,char *outbuf,
         if (strcmp(user, "guest") && strcmp(user, "admin"))
             fstrcpy(user, "guest");
 	}
+    /* Foxconn added end pling 11/30/2009 */
 
 	DEBUG(3,("sesssetupX:name=[%s]\\[%s]@[%s]\n", domain, user, get_remote_machine_name()));
 

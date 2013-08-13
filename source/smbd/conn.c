@@ -21,6 +21,7 @@
 
 #include "includes.h"
 
+/* Foxconn, add by MJ., 2010.03.29, for making a Semaphore. */
 #ifdef MAX_USB_ACCESS
 /* Obtain a binary semaphore¡¦s ID, allocating if necessary. */
 int binary_semaphore_allocation (key_t key, int sem_flags)
@@ -72,6 +73,7 @@ int binary_semaphore_post (int semid)
     return semop (semid, operations, 1);
 }
 #endif //End of MAX_USB_ACCESS
+/* Foxconn, ened by MJ., 2010.03.29 */
 
 
 /* The connections bitmap is expanded in increments of BITMAP_BLOCK_SZ. The
@@ -150,6 +152,7 @@ connection_struct *conn_new(void)
 	connection_struct *conn;
 	int i;
     int find_offset = 1;
+    /* Foxconn, added by MJ., 2010.03.26 */
 #if 0
     extern CON_STATISTIC *con_st;
 
@@ -163,6 +166,7 @@ connection_struct *conn_new(void)
         binary_semaphore_post (con_st->sem_id);
     }
 #endif
+    /* Foxconn, ended by MJ., 2010.03.26*/
 
 find_again:
 	i = bitmap_find(bmap, find_offset);

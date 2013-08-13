@@ -29,6 +29,7 @@ extern int global_oplock_break;
 extern uint32 global_client_caps;
 extern struct current_user current_user;
 
+/* Foxconn modified start pling 11/25/2009 */
 //#define get_file_size(sbuf) ((sbuf).st_size)
 #define get_file_size(sbuf)  get_file_size2(sbuf)
 static SMB_BIG_UINT get_file_size2(struct stat st)
@@ -50,6 +51,7 @@ static SMB_BIG_UINT get_file_size2(struct stat st)
 
     return file_size_64;
 }
+/* Foxconn modified end pling 11/25/2009 */
 
 #define DIR_ENTRY_SAFETY_MARGIN 4096
 
@@ -82,9 +84,11 @@ SMB_BIG_UINT get_allocation_size(connection_struct *conn, files_struct *fsp, SMB
 #if defined(HAVE_STAT_ST_BLOCKS) && defined(STAT_ST_BLOCKSIZE)
 	ret = (SMB_BIG_UINT)STAT_ST_BLOCKSIZE * (SMB_BIG_UINT)sbuf->st_blocks;
 #else
+    /* Foxconn modified start pling 11/25/2009 */
     /* Set the correct allocation size, even for large files */
 	//ret = (SMB_BIG_UINT)get_file_size(*sbuf);
 	ret = (SMB_BIG_UINT)STAT_ST_BLOCKSIZE * (SMB_BIG_UINT)sbuf->st_blocks;
+    /* Foxconn modified start pling 11/25/2009 */
 #endif
 
 	if (!ret && fsp && fsp->initial_allocation_size)
@@ -846,8 +850,10 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 	uint32 reskey=0;
 	long prev_dirpos=0;
 	int mode=0;
+    /* Foxconn modified start pling 11/23/2009 */
 	//SMB_OFF_T file_size = 0;
 	SMB_BIG_UINT file_size = 0;
+    /* Foxconn modified start pling 11/23/2009 */
 	SMB_BIG_UINT allocation_size = 0;
 	uint32 len;
 	time_t mdate=0, adate=0, cdate=0;
@@ -1072,9 +1078,15 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date(p,adate); p += 8;
 			put_long_date(p,mdate); p += 8;
 			put_long_date(p,mdate); p += 8;
+            /* Foxconn modified start pling 11/23/2009 */
 			//SOFF_T(p,0,file_size); p += 8;
 			SOFF64_T(p,0,file_size); p += 8;
+            /* Foxconn modified end pling 11/23/2009 */
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue where file size > 4GB. */
+			/* SOFF_T(p,0,allocation_size); p += 8; */
 			SOFF64_T(p,0,allocation_size); p += 8;
+			/* Foxconn modified end pling 03/11/2011 */
 			SIVAL(p,0,nt_extmode); p += 4;
 			q = p; p += 4; /* q is placeholder for name length. */
 			{
@@ -1116,13 +1128,15 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date(p,adate); p += 8;
 			put_long_date(p,mdate); p += 8;
 			put_long_date(p,mdate); p += 8;
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB. */
 #if 0
 			SOFF_T(p,0,file_size); p += 8;
 			SOFF_T(p,0,allocation_size); p += 8;
 #endif
 			SOFF64_T(p,0,file_size); p += 8;
 			SOFF64_T(p,0,allocation_size); p += 8;
-
+			/* Foxconn modified end pling 03/11/2011 */
 			SIVAL(p,0,nt_extmode); p += 4;
 			len = srvstr_push(outbuf, p + 4, fname, -1, STR_TERMINATE_ASCII);
 			SIVAL(p,0,len);
@@ -1141,12 +1155,15 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date(p,adate); p += 8;
 			put_long_date(p,mdate); p += 8;
 			put_long_date(p,mdate); p += 8;
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix Win7 DOS prompt can't get correct file size > 4GB */
 #if 0
 			SOFF_T(p,0,file_size); p += 8;
 			SOFF_T(p,0,allocation_size); p += 8;
 #endif
 			SOFF64_T(p,0,file_size); p += 8;
 			SOFF64_T(p,0,allocation_size); p += 8;
+			/* Foxconn modified end pling 03/11/2011 */
 			SIVAL(p,0,nt_extmode); p += 4;
 			q = p; p += 4; /* q is placeholder for name length. */
 			{
@@ -1188,12 +1205,15 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date(p,adate); p += 8;
 			put_long_date(p,mdate); p += 8;
 			put_long_date(p,mdate); p += 8;
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB. */
 #if 0
 			SOFF_T(p,0,file_size); p += 8;
 			SOFF_T(p,0,allocation_size); p += 8;
 #endif
 			SOFF64_T(p,0,file_size); p += 8;
 			SOFF64_T(p,0,allocation_size); p += 8;
+			/* Foxconn modified end pling 03/11/2011 */
 			SIVAL(p,0,nt_extmode); p += 4;
 			q = p; p += 4; /* q is placeholder for name length. */
 			{
@@ -1222,12 +1242,15 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date(p,adate); p += 8;
 			put_long_date(p,mdate); p += 8;
 			put_long_date(p,mdate); p += 8;
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB. */
 #if 0
 			SOFF_T(p,0,file_size); p += 8;
 			SOFF_T(p,0,allocation_size); p += 8;
 #endif
 			SOFF64_T(p,0,file_size); p += 8;
 			SOFF64_T(p,0,allocation_size); p += 8;
+			/* Foxconn modified end pling 03/11/2011 */
 			SIVAL(p,0,nt_extmode); p += 4;
 			q = p; p += 4; /* q is placeholder for name length */
 			{
@@ -1272,10 +1295,18 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			SIVAL(p,0,reskey); p+= 4;    /* Used for continuing search. */
 
 			/* Begin of SMB_QUERY_FILE_UNIX_BASIC */
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB */
+			/* SOFF_T(p,0,get_file_size(sbuf)); */            /* File size 64 Bit */
 			SOFF64_T(p,0,get_file_size(sbuf));             /* File size 64 Bit */
+			/* Foxconn modified end pling 03/11/2011 */
 			p+= 8;
 
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB */
+			/* SOFF_T(p,0,get_allocation_size(conn,NULL,&sbuf)); */ /* Number of bytes used on disk - 64 Bit */
 			SOFF64_T(p,0,get_allocation_size(conn,NULL,&sbuf)); /* Number of bytes used on disk - 64 Bit */
+			/* Foxconn modified end pling 03/11/2011 */
 			p+= 8;
 
 			put_long_date(p,sbuf.st_ctime);       /* Inode change Time 64 Bit */
@@ -2373,8 +2404,10 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 	uint16 tran_call = SVAL(inbuf, smb_setup0);
 	uint16 info_level;
 	int mode=0;
+	/* Foxconn modified start pling 12/15/2010 */
 	/* SMB_OFF_T file_size=0; */
 	SMB_BIG_UINT file_size = 0;
+	/* Foxconn modified end pling 12/15/2010 */
 	SMB_BIG_UINT allocation_size=0;
 	unsigned int data_size;
 	unsigned int param_size = 2;
@@ -2653,14 +2686,15 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 
 			DEBUG(10,("call_trans2qfilepathinfo: SMB_FILE_STANDARD_INFORMATION\n"));
 			data_size = 24;
-
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB*/
 #if 0
 			SOFF_T(pdata,0,allocation_size);
 			SOFF_T(pdata,8,file_size);
 #endif
 			SOFF64_T(pdata,0,allocation_size);
 			SOFF64_T(pdata,8,file_size);
-
+			/* Foxconn modified end pling 03/11/2011 */
 			if (delete_pending & sbuf.st_nlink)
 				SIVAL(pdata,16,sbuf.st_nlink - 1);
 			else
@@ -2711,14 +2745,22 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 		case SMB_QUERY_FILE_ALLOCATION_INFO:
 			DEBUG(10,("call_trans2qfilepathinfo: SMB_FILE_ALLOCATION_INFORMATION\n"));
 			data_size = 8;
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB*/
+			/* SOFF_T(pdata,0,allocation_size); */
 			SOFF64_T(pdata,0,allocation_size);
+			/* Foxconn modified end pling 03/11/2011 */
 			break;
 
 		case SMB_FILE_END_OF_FILE_INFORMATION:
 		case SMB_QUERY_FILE_END_OF_FILEINFO:
 			DEBUG(10,("call_trans2qfilepathinfo: SMB_FILE_END_OF_FILE_INFORMATION\n"));
 			data_size = 8;
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB.*/
+			/* SOFF_T(pdata,0,file_size); */
 			SOFF64_T(pdata,0,file_size);
+			/* Foxconn modified end pling 03/11/2011 */
 			break;
 
 		case SMB_QUERY_FILE_ALL_INFO:
@@ -2732,6 +2774,7 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 			put_long_date(pdata+24,sbuf.st_mtime); /* change time */
 			SIVAL(pdata,32,mode);
 			pdata += 40;
+			/* Foxconn modified start pling 12/15/2010 */
 			/* Fix Linux smb client can't see file > 4GB */
 #if 0
 			SOFF_T(pdata,0,allocation_size);
@@ -2739,6 +2782,7 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 #endif
 			SOFF64_T(pdata,0,allocation_size);
 			SOFF64_T(pdata,8,file_size);
+			/* Foxconn modified end pling 12/15/2010 */
 			if (delete_pending && sbuf.st_nlink)
 				SIVAL(pdata,16,sbuf.st_nlink - 1);
 			else
@@ -2824,7 +2868,11 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 				size_t byte_len = dos_PutUniCode(pdata+24,"::$DATA", 0xE, False);
 				SIVAL(pdata,0,0); /* ??? */
 				SIVAL(pdata,4,byte_len); /* Byte length of unicode string ::$DATA */
+				/* Foxconn modified start pling 03/11/2011 */
+				/* Fix potential incorrect file size issue if file size > 4GB.*/
+				/* SOFF_T(pdata,8,file_size); */
 				SOFF64_T(pdata,8,file_size);
+				/* Foxconn modified end pling 03/11/2011 */
 				SIVAL(pdata,16,allocation_size);
 				SIVAL(pdata,20,0); /* ??? */
 				data_size = 24 + byte_len;
@@ -2834,7 +2882,11 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 		case SMB_QUERY_COMPRESSION_INFO:
 		case SMB_FILE_COMPRESSION_INFORMATION:
 			DEBUG(10,("call_trans2qfilepathinfo: SMB_FILE_COMPRESSION_INFORMATION\n"));
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB.*/
+			/* SOFF_T(pdata,0,file_size); */
 			SOFF64_T(pdata,0,file_size);
+			/* Foxconn modified end pling 03/11/2011 */
 			SIVAL(pdata,8,0); /* ??? */
 			SIVAL(pdata,12,0); /* ??? */
 			data_size = 16;
@@ -2846,12 +2898,15 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 			put_long_date(pdata+8,sbuf.st_atime);
 			put_long_date(pdata+16,sbuf.st_mtime); /* write time */
 			put_long_date(pdata+24,sbuf.st_mtime); /* change time */
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB.*/
 #if 0
 			SIVAL(pdata,32,allocation_size);
 			SOFF_T(pdata,40,file_size);
 #endif
 			SOFF64_T(pdata,32,allocation_size);
 			SOFF64_T(pdata,40,file_size);
+			/* Foxconn modified end pling 03/11/2011 */
 			SIVAL(pdata,48,mode);
 			SIVAL(pdata,52,0); /* ??? */
 			data_size = 56;
@@ -2873,10 +2928,18 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 			DEBUG(10,("call_trans2qfilepathinfo: SMB_QUERY_FILE_UNIX_BASIC\n"));
 			DEBUG(4,("call_trans2qfilepathinfo: st_mode=%o\n",(int)sbuf.st_mode));
 
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB.*/
+			/* SOFF_T(pdata,0,get_file_size(sbuf)); */             /* File size 64 Bit */
 			SOFF64_T(pdata,0,get_file_size(sbuf));          /* File size 64 Bit */
+			/* Foxconn modified end pling 03/11/2011 */
 			pdata += 8;
 
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB.*/
+			/* SOFF_T(pdata,0,get_allocation_size(conn,fsp,&sbuf));*/ /* Number of bytes used on disk - 64 Bit */
 			SOFF64_T(pdata,0,get_allocation_size(conn,fsp,&sbuf)); /* Number of bytes used on disk - 64 Bit */
+			/* Foxconn modified end pling 03/11/2011 */
 			pdata += 8;
 
 			put_long_date(pdata,sbuf.st_ctime);       /* Creation Time 64 Bit */
@@ -3219,8 +3282,10 @@ static int call_trans2setfilepathinfo(connection_struct *conn, char *inbuf, char
 	uint16 tran_call = SVAL(inbuf, smb_setup0);
 	uint16 info_level;
 	int dosmode=0;
+    /* Foxconn modified start pling 11/19/2009 */
 	//SMB_OFF_T size=0;
 	SMB_BIG_UINT size=0;
+    /* Foxconn modified end pling 11/19/2009 */
 	struct utimbuf tvs;
 	SMB_STRUCT_STAT sbuf;
 	pstring fname;
@@ -3436,12 +3501,14 @@ static int call_trans2setfilepathinfo(connection_struct *conn, char *inbuf, char
 #ifdef LARGE_SMB_OFF_T
 			allocation_size |= (((SMB_BIG_UINT)IVAL(pdata,4)) << 32);
 #else /* LARGE_SMB_OFF_T */
+			/* Foxconn modified start pling 03/11/2011 */
 #if 0
 			if (IVAL(pdata,4) != 0) /* more than 32 bits? */
 				return ERROR_DOS(ERRDOS,ERRunknownlevel);
 #endif
 			if (IVAL(pdata,4) != 0) /* more than 32 bits? */
 				allocation_size |= (((SMB_BIG_UINT)IVAL(pdata,4)) << 32);
+			/* Foxconn modified end pling 03/11/2011 */
 #endif /* LARGE_SMB_OFF_T */
 			DEBUG(10,("call_trans2setfilepathinfo: Set file allocation info for file %s to %.0f\n",
 					fname, (double)allocation_size ));
@@ -3514,6 +3581,7 @@ static int call_trans2setfilepathinfo(connection_struct *conn, char *inbuf, char
 #ifdef LARGE_SMB_OFF_T
 			size |= (((SMB_OFF_T)IVAL(pdata,4)) << 32);
 #else /* LARGE_SMB_OFF_T */
+            /* Foxconn modified start pling 11/19/2009 */
             /* We should support large file size */
 #if 0
 			if (IVAL(pdata,4) != 0)	/* more than 32 bits? */
@@ -3522,6 +3590,7 @@ static int call_trans2setfilepathinfo(connection_struct *conn, char *inbuf, char
 			if (IVAL(pdata,4) != 0)	{ /* more than 32 bits? */ 
 			    size |= (((SMB_BIG_UINT)IVAL(pdata,4)) << 32);
             }
+            /* Foxconn modified end pling 11/19/2009 */
 #endif /* LARGE_SMB_OFF_T */
 			DEBUG(10,("call_trans2setfilepathinfo: Set end of file info for file %s to %.0f\n", fname, (double)size ));
 			break;
@@ -3568,13 +3637,15 @@ static int call_trans2setfilepathinfo(connection_struct *conn, char *inbuf, char
 #ifdef LARGE_SMB_OFF_T
 			position_information |= (((SMB_BIG_UINT)IVAL(pdata,4)) << 32);
 #else /* LARGE_SMB_OFF_T */
-
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB */
 #if 0
 			if (IVAL(pdata,4) != 0) /* more than 32 bits? */
 				return ERROR_DOS(ERRDOS,ERRunknownlevel);
 #endif
 			if (IVAL(pdata,4) != 0) /* more than 32 bits? */
 				position_information |= (((SMB_BIG_UINT)IVAL(pdata,4)) << 32);
+			/* Foxconn modified end pling 03/11/2011 */
 #endif /* LARGE_SMB_OFF_T */
 			DEBUG(10,("call_trans2setfilepathinfo: Set file position information for file %s to %.0f\n",
 					fname, (double)position_information ));
@@ -3600,12 +3671,15 @@ static int call_trans2setfilepathinfo(connection_struct *conn, char *inbuf, char
 #ifdef LARGE_SMB_OFF_T
 				size |= (((SMB_OFF_T)IVAL(pdata,4)) << 32);
 #else /* LARGE_SMB_OFF_T */
+				/* Foxconn modified start pling 03/11/2011 */
+				/* Fix potential incorrect file size issue if file size > 4GB */
 #if 0
 				if (IVAL(pdata,4) != 0)	/* more than 32 bits? */
 					return ERROR_DOS(ERRDOS,ERRunknownlevel);
 #endif
 				if (IVAL(pdata,4) != 0)	/* more than 32 bits? */
 					size |= (((SMB_OFF_T)IVAL(pdata,4)) << 32);
+				/* Foxconn modified end pling 03/11/2011 */
 #endif /* LARGE_SMB_OFF_T */
 			}
 			pdata+=24;          /* ctime & st_blocks are not changed */

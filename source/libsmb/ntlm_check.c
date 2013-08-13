@@ -185,7 +185,7 @@ NTSTATUS ntlm_password_check(TALLOC_CTX *mem_ctx,
 {
 	static const unsigned char zeros[8];
 	FILE* fp = NULL;//water, If all shared folders are 'All - no password', then no need to login for "HTTP", "FTP" or samba.
-    int no_password = 0;    //  added pling 11/30/2009 */
+    int no_password = 0;    // Foxconn added pling 11/30/2009 */
 	if (nt_pw == NULL) {
 		DEBUG(3,("ntlm_password_check: NO NT password stored for user %s.\n", 
 			 username));
@@ -309,7 +309,7 @@ NTSTATUS ntlm_password_check(TALLOC_CTX *mem_ctx,
 			
 			DEBUG(0,("ntlm_password_check: Checking NTLMv2 password without a domain\n"));
 			
-			/* add start, water, 06/08/2009*/
+			/*foxconn add start, water, 06/08/2009*/
 			/*If all shared folders are 'All - no password',
 			 then no need to login for "HTTP", "FTP" or samba.*/
 			fp = fopen("/tmp/all_no_password","r");
@@ -319,9 +319,9 @@ NTSTATUS ntlm_password_check(TALLOC_CTX *mem_ctx,
 			    DEBUG(0, ("all_no_password, ntlm_check.c\n"));
     			return NT_STATUS_OK;
 			}
-			/* add end, water, 06/08/2009*/
+			/*foxconn add end, water, 06/08/2009*/
 			
-			/* add start, water, 11/17/2008*/
+			/*foxconn add start, water, 11/17/2008*/
 			/*when username=guest, user can access the shared folder with any password*/
 			if (0 == strcmp("guest", client_username))
     		{
@@ -329,7 +329,7 @@ NTSTATUS ntlm_password_check(TALLOC_CTX *mem_ctx,
     			return NT_STATUS_OK;
     		}
 			//return NT_STATUS_OK;
-			/* add end, water, 11/17/2008*/
+			/*foxconn add end, water, 11/17/2008*/
 			if (smb_pwd_check_ntlmv2( nt_response, 
 						  nt_pw, challenge, 
 						  client_username, 
@@ -349,7 +349,7 @@ NTSTATUS ntlm_password_check(TALLOC_CTX *mem_ctx,
 			*/
 			DEBUG(0,("ntlm_password_check: Checking NT MD4 password\n"));
 			
-			/* add start, water, 06/08/2009*/
+			/*foxconn add start, water, 06/08/2009*/
 			/*If all shared folders are 'All - no password',
 			 then no need to login for "HTTP", "FTP" or samba.*/
 			fp = fopen("/tmp/all_no_password","r");
@@ -359,9 +359,9 @@ NTSTATUS ntlm_password_check(TALLOC_CTX *mem_ctx,
 			    DEBUG(0, ("all_no_password, ntlm_check.c\n"));
     			return NT_STATUS_OK;
 			}
-			/* add end, water, 06/08/2009*/
+			/*foxconn add end, water, 06/08/2009*/
 			
-			/* add start, water, 11/17/2008*/
+			/*foxconn add start, water, 11/17/2008*/
 			/*when username=guest, user can access the shared folder with any password*/
 			if (0 == strcmp("guest", username))
     		{
@@ -369,7 +369,7 @@ NTSTATUS ntlm_password_check(TALLOC_CTX *mem_ctx,
     			return NT_STATUS_OK;
     		}
 			//return NT_STATUS_OK;
-			/* add end, water, 11/17/2008*/
+			/*foxconn add end, water, 11/17/2008*/
 			if (smb_pwd_check_ntlmv1(nt_response, 
 						 nt_pw, challenge,
 						 user_sess_key)) {
@@ -397,7 +397,7 @@ NTSTATUS ntlm_password_check(TALLOC_CTX *mem_ctx,
 		}
 	}
 	
-	/*  add end pling 11/30/2009 */
+	/* Foxconn add end pling 11/30/2009 */
 	/* If all shared folders are 'All - no password',
 	 * then no need to login for "HTTP", "FTP" or samba.
      */
@@ -406,23 +406,23 @@ NTSTATUS ntlm_password_check(TALLOC_CTX *mem_ctx,
 	    fclose(fp);
         no_password = 1;
 	}
-	/*  add end pling 11/30/2009 */
+	/* Foxconn add end pling 11/30/2009 */
 
 	if (lm_response->length == 0) {
-        /*  added start pling 11/30/2009 */
+        /* Foxconn added start pling 11/30/2009 */
         if (no_password)
     		return NT_STATUS_OK;
-        /*  added end pling 11/30/2009 */
+        /* Foxconn added end pling 11/30/2009 */
 		DEBUG(3,("ntlm_password_check: NEITHER LanMan nor NT password supplied for user %s\n",
 			 username));
 		return NT_STATUS_WRONG_PASSWORD;
 	}
 	
 	if (lm_response->length < 24) {
-        /*  added start pling 11/30/2009 */
+        /* Foxconn added start pling 11/30/2009 */
         if (no_password)
     		return NT_STATUS_OK;
-        /*  added end pling 11/30/2009 */
+        /* Foxconn added end pling 11/30/2009 */
 		DEBUG(2,("ntlm_password_check: invalid LanMan password length (%lu) for user %s\n", 
 			 (unsigned long)nt_response->length, username));		
 		return NT_STATUS_WRONG_PASSWORD;

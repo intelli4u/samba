@@ -588,10 +588,10 @@ int reply_ntcreate_and_X(connection_struct *conn,
 	   reply bits separately. */
 	int oplock_request = 0;
 	int fmode=0,rmode=0;
-    /*  modified start pling 11/25/2009 */
+    /* Foxconn modified start pling 11/25/2009 */
 	//SMB_OFF_T file_len = 0;
 	SMB_BIG_UINT file_len = 0;
-    /*  modified end pling 11/25/2009 */
+    /* Foxconn modified end pling 11/25/2009 */
 	SMB_STRUCT_STAT sbuf;
 	int smb_action = 0;
 	BOOL bad_path = False;
@@ -916,10 +916,10 @@ create_options = 0x%x root_dir_fid = 0x%x\n", flags, desired_access, file_attrib
 		
 	restore_case_semantics(conn, file_attributes);
 		
-    /*  modified start pling 11/25/2009 */
+    /* Foxconn modified start pling 11/25/2009 */
 	//file_len = sbuf.st_size;
 	file_len = get_real_file_size(&sbuf);
-    /*  modified end pling 11/25/2009 */
+    /* Foxconn modified end pling 11/25/2009 */
 	fmode = dos_mode(conn,fname,&sbuf);
 	if(fmode == 0)
 		fmode = FILE_ATTRIBUTE_NORMAL;
@@ -930,28 +930,31 @@ create_options = 0x%x root_dir_fid = 0x%x\n", flags, desired_access, file_attrib
 	} 
 	
 	/* Save the requested allocation size. */
+	/* Foxconn modified start pling 2013/01/07 */
+	/* WNDR3700v3 xcopy issue: port from WNDR3800 */
 	if (smb_action == FILE_WAS_CREATED || smb_action == FILE_WAS_OVERWRITTEN) {
-	allocation_size = (SMB_BIG_UINT)IVAL(inbuf,smb_ntcreate_AllocationSize);
+		allocation_size = (SMB_BIG_UINT)IVAL(inbuf,smb_ntcreate_AllocationSize);
 #ifdef LARGE_SMB_OFF_T
-	allocation_size |= (((SMB_BIG_UINT)IVAL(inbuf,smb_ntcreate_AllocationSize + 4)) << 32);
+		allocation_size |= (((SMB_BIG_UINT)IVAL(inbuf,smb_ntcreate_AllocationSize + 4)) << 32);
 #endif
-	if (allocation_size && (allocation_size > (SMB_BIG_UINT)file_len)) {
-		fsp->initial_allocation_size = smb_roundup(fsp->conn, allocation_size);
-		if (fsp->is_directory) {
-			close_file(fsp,False);
-			END_PROFILE(SMBntcreateX);
-			/* Can't set allocation size on a directory. */
-			return ERROR_NT(NT_STATUS_ACCESS_DENIED);
+		if (allocation_size && (allocation_size > (SMB_BIG_UINT)file_len)) {
+			fsp->initial_allocation_size = smb_roundup(fsp->conn, allocation_size);
+			if (fsp->is_directory) {
+				close_file(fsp,False);
+				END_PROFILE(SMBntcreateX);
+				/* Can't set allocation size on a directory. */
+				return ERROR_NT(NT_STATUS_ACCESS_DENIED);
+			}
+			if (vfs_allocate_file_space(fsp, fsp->initial_allocation_size) == -1) {
+				close_file(fsp,False);
+				END_PROFILE(SMBntcreateX);
+				return ERROR_NT(NT_STATUS_DISK_FULL);
+			}
+		} else {
+			fsp->initial_allocation_size = smb_roundup(fsp->conn,(SMB_BIG_UINT)file_len);
 		}
-		if (vfs_allocate_file_space(fsp, fsp->initial_allocation_size) == -1) {
-			close_file(fsp,False);
-			END_PROFILE(SMBntcreateX);
-			return ERROR_NT(NT_STATUS_DISK_FULL);
-		}
-	} else {
-		fsp->initial_allocation_size = smb_roundup(fsp->conn,(SMB_BIG_UINT)file_len);
 	}
-	}
+	/* Foxconn modified end pling 2013/01/07 */
 
 	/* 
 	 * If the caller set the extended oplock request bit
@@ -1020,17 +1023,17 @@ create_options = 0x%x root_dir_fid = 0x%x\n", flags, desired_access, file_attrib
 	p += 8;
 	SIVAL(p,0,fmode); /* File Attributes. */
 	p += 4;
-    /*  modified start pling 11/25/2009 */
+    /* Foxconn modified start pling 11/25/2009 */
     /* Use 64 bit file size to support large files */
 	//SOFF_T(p, 0, get_allocation_size(conn,fsp,&sbuf));
 	SOFF64_T(p, 0, get_allocation_size(conn,fsp,&sbuf));
-    /*  modified end pling 11/25/2009 */
+    /* Foxconn modified end pling 11/25/2009 */
 	p += 8;
-    /*  modified start pling 11/25/2009 */
+    /* Foxconn modified start pling 11/25/2009 */
     /* Use 64 bit file size to support large files */
 	//SOFF_T(p,0,file_len);
     SOFF64_T(p,0,file_len);
-    /*  modified end pling 11/25/2009 */
+    /* Foxconn modified end pling 11/25/2009 */
 	p += 8;
 	if (flags & EXTENDED_RESPONSE_REQUIRED)
 		SSVAL(p,2,0x7);

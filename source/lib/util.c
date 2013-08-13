@@ -1641,6 +1641,12 @@ BOOL is_in_path(const char *name, name_compare_entry *namelist, BOOL case_sensit
 	return False;
 }
 
+/* Foxconn added start pling 01/30/2012 */
+/* Only allow "admin" user to see admin paths */
+/* Function to check whether a folder is "admin" folder.
+ * This make use of the "hide files" directive in the smb.conf file. 
+ * Mostly copied from the function 'is_in_path' above with some modifications. 
+ */
 BOOL is_admin_path(const char *name, name_compare_entry *namelist, BOOL case_sensitive)
 {
 	int i;
@@ -1677,6 +1683,7 @@ BOOL is_admin_path(const char *name, name_compare_entry *namelist, BOOL case_sen
  
 	return False;
 }
+/* Foxconn added end pling 01/30/2012 */
 
 /*******************************************************************
  Strip a '/' separated list into an array of 

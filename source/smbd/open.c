@@ -51,7 +51,7 @@ static int fd_open(struct connection_struct *conn, const char *fname,
 		flags, (int)mode, fd, (fd == -1) ? strerror(errno) : "" ));
 
 #if 1
-        /* , added by MJ., 2010.04.09, for locking files against access of other programs. */
+        /* Foxconn, added by MJ., 2010.04.09, for locking files against access of other programs. */
         int ret;
         struct flock my_lock;
         my_lock.l_type = F_RDLCK;
@@ -62,11 +62,11 @@ static int fd_open(struct connection_struct *conn, const char *fname,
         if(accmode == O_RDONLY)
         {
             DEBUG(10, ("read only: %d\n", fd));
-            /*  modified start pling 08/26/2010 */
+            /* Foxconn modified start pling 08/26/2010 */
             /* WNR3500L TD#159: Don't do fcntl if fd is not valid */
             //if(!fcntl(fd, F_GETLK, &my_lock) && fd != -1)
             if(fd >= 0 && !fcntl(fd, F_GETLK, &my_lock))
-            /*  modified end pling 08/26/2010 */
+            /* Foxconn modified end pling 08/26/2010 */
             {
                 DEBUG(10, ("my_lock: %d\n", my_lock.l_type));
                 if(my_lock.l_type != F_UNLCK){
@@ -108,7 +108,7 @@ static int fd_open(struct connection_struct *conn, const char *fname,
                 DEBUG(10, ("no file exists, %d\n", fd));
             }
         }
-        /* , ended by MJ., 2010.04.09 */
+        /* Foxconn, ended by MJ., 2010.04.09 */
 #endif
 
 	return fd;
@@ -236,7 +236,7 @@ static BOOL open_file(files_struct *fsp,connection_struct *conn,
 			return False;
 		}
 
-        /* , ended by MJ., 2010.03.23, for locking files accessed by other programs. */
+        /* Foxconn, ended by MJ., 2010.03.23, for locking files accessed by other programs. */
 #if 0
         if(accmode == O_RDONLY)
         {
@@ -252,7 +252,7 @@ static BOOL open_file(files_struct *fsp,connection_struct *conn,
             my_lock.l_whence = 0;
             my_lock.l_start = 0;
             my_lock.l_len = 0;
-            /* , added by MJ. 2010.03.23 */
+            /* Foxconn, added by MJ. 2010.03.23 */
             //smb_debug(fname);
             fd = open(fname, O_RDONLY);
             if(fd >= 0)
@@ -276,7 +276,7 @@ static BOOL open_file(files_struct *fsp,connection_struct *conn,
                 fsp->fd = fd_open(conn, fname, local_flags, mode);
             }
         }
-        /* , ended by MJ., 2010.03.23 */
+        /* Foxconn, ended by MJ., 2010.03.23 */
 #else
         fsp->fd = fd_open(conn, fname, local_flags, mode);
 #endif

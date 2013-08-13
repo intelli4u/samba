@@ -1494,7 +1494,7 @@ NTSTATUS can_delete(connection_struct *conn, char *fname, int dirtype, BOOL bad_
 	int smb_action;
 	int access_mode;
 	files_struct *fsp;
-    /* , add by MJ., for block delete when bftpd is downloading file, 
+    /* Foxconn, add by MJ., for block delete when bftpd is downloading file, 
      * 2011.05.18 */
     int fd = -1;
     struct flock my_lock;
@@ -1521,7 +1521,7 @@ NTSTATUS can_delete(connection_struct *conn, char *fname, int dirtype, BOOL bad_
         }
         close(fd);
     }
-    /* , end by MJ., 2011.05.18 */
+    /* Foxconn, end by MJ., 2011.05.18 */
 
 	DEBUG(10,("can_delete: %s, dirtype = %d\n",
 		fname, dirtype ));
@@ -2172,12 +2172,12 @@ Returning short read of maximum allowed for compatibility with Windows 2000.\n",
  Reply to a read and X - possibly using sendfile.
 ****************************************************************************/
 
-/*  modified start pling 11/24/2009 */
+/* Foxconn modified start pling 11/24/2009 */
 //int send_file_readX(connection_struct *conn, char *inbuf,char *outbuf,int length, int len_outbuf,
 //		files_struct *fsp, SMB_OFF_T startpos, size_t smb_maxcnt)
 int send_file_readX(connection_struct *conn, char *inbuf,char *outbuf,int length, int len_outbuf,
 		files_struct *fsp, SMB_BIG_UINT startpos, size_t smb_maxcnt)
-/*  modified end pling 11/24/2009 */
+/* Foxconn modified end pling 11/24/2009 */
 {
 	int outsize = 0;
 	ssize_t nread = -1;
@@ -2224,13 +2224,13 @@ int send_file_readX(connection_struct *conn, char *inbuf,char *outbuf,int length
 		header.length = data - outbuf;
 		header.free = NULL;
 
-        /*  modified start pling 11/25/2009 */
+        /* Foxconn modified start pling 11/25/2009 */
         /* force 'startpos' to 32 bit since the 'sendfile' API can 
          * only handle 32 bit offset.
          */
 		//if ((nread = SMB_VFS_SENDFILE( smbd_server_fd(), fsp, fsp->fd, &header, startpos, smb_maxcnt)) == -1) {
 		if ((nread = SMB_VFS_SENDFILE( smbd_server_fd(), fsp, fsp->fd, &header, (unsigned long)startpos, smb_maxcnt)) == -1) {
-        /*  modified end pling 11/25/2009 */
+        /* Foxconn modified end pling 11/25/2009 */
 			/* Returning ENOSYS means no data at all was sent. Do this as a normal read. */
 			if (errno == ENOSYS) {
 				goto normal_read;
@@ -2302,10 +2302,10 @@ int send_file_readX(connection_struct *conn, char *inbuf,char *outbuf,int length
 int reply_read_and_X(connection_struct *conn, char *inbuf,char *outbuf,int length,int bufsize)
 {
 	files_struct *fsp = file_fsp(inbuf,smb_vwv2);
-    /*  modified start pling 11/24/2009 */
+    /* Foxconn modified start pling 11/24/2009 */
 	//SMB_OFF_T startpos = IVAL_TO_SMB_OFF_T(inbuf,smb_vwv3);
 	SMB_BIG_UINT startpos = IVAL_TO_SMB_OFF_T(inbuf,smb_vwv3);
-    /*  modified end pling 11/24/2009 */
+    /* Foxconn modified end pling 11/24/2009 */
 	ssize_t nread = -1;
 	size_t smb_maxcnt = SVAL(inbuf,smb_vwv5);
 #if 0
@@ -2337,9 +2337,9 @@ int reply_read_and_X(connection_struct *conn, char *inbuf,char *outbuf,int lengt
 		}
 	}
 
-    /*  added start pling 11/24/2009 */
+    /* Foxconn added start pling 11/24/2009 */
     startpos &= 0xFFFFFFFFUL;
-    /*  added end pling 11/24/2009 */
+    /* Foxconn added end pling 11/24/2009 */
 
 	if(CVAL(inbuf,smb_wct) == 12) {
 #ifdef LARGE_SMB_OFF_T
@@ -2350,7 +2350,7 @@ int reply_read_and_X(connection_struct *conn, char *inbuf,char *outbuf,int lengt
 
 #else /* !LARGE_SMB_OFF_T */
 
-        /*  modified start pling 11/24/2009 */
+        /* Foxconn modified start pling 11/24/2009 */
 #if 0
 		/*
 		 * Ensure we haven't been sent a >32 bit offset.
@@ -2364,7 +2364,7 @@ int reply_read_and_X(connection_struct *conn, char *inbuf,char *outbuf,int lengt
 		}
 #endif
 		startpos |= (((SMB_BIG_UINT)IVAL(inbuf,smb_vwv10)) << 32);
-        /*  modified end pling 11/24/2009 */
+        /* Foxconn modified end pling 11/24/2009 */
 
 #endif /* LARGE_SMB_OFF_T */
 
@@ -2667,10 +2667,10 @@ int reply_write(connection_struct *conn, char *inbuf,char *outbuf,int size,int d
 int reply_write_and_X(connection_struct *conn, char *inbuf,char *outbuf,int length,int bufsize)
 {
 	files_struct *fsp = file_fsp(inbuf,smb_vwv2);
-    /*  modified start pling 11/24/2009 */
+    /* Foxconn modified start pling 11/24/2009 */
 	//SMB_OFF_T startpos = IVAL_TO_SMB_OFF_T(inbuf,smb_vwv3);
 	SMB_BIG_UINT startpos = IVAL_TO_SMB_OFF_T(inbuf,smb_vwv3);
-    /*  modified end pling 11/24/2009 */
+    /* Foxconn modified end pling 11/24/2009 */
 	size_t numtowrite = SVAL(inbuf,smb_vwv10);
 	BOOL write_through = BITSETW(inbuf+smb_vwv7,0);
 	ssize_t nwritten = -1;
@@ -2700,12 +2700,12 @@ int reply_write_and_X(connection_struct *conn, char *inbuf,char *outbuf,int leng
 
 	data = smb_base(inbuf) + smb_doff;
 
-    /*  added start pling 11/24/2009 */
+    /* Foxconn added start pling 11/24/2009 */
     /* Force startpos to 32 bit (unsigned), since
      * the 'offset' field is 32 bit only.
      */
     startpos &= 0xFFFFFFFFUL;
-    /*  added end pling 11/24/2009 */
+    /* Foxconn added end pling 11/24/2009 */
 
 	if(CVAL(inbuf,smb_wct) == 14) {
 #ifdef LARGE_SMB_OFF_T
@@ -2716,7 +2716,7 @@ int reply_write_and_X(connection_struct *conn, char *inbuf,char *outbuf,int leng
 
 #else /* !LARGE_SMB_OFF_T */
 
-        /*  modified start pling 11/14/2009 */
+        /* Foxconn modified start pling 11/14/2009 */
         /* Bypass the file size limitation */
 #if 0
 		/*
@@ -2731,7 +2731,7 @@ int reply_write_and_X(connection_struct *conn, char *inbuf,char *outbuf,int leng
 		}
 #endif
 		startpos |= (((SMB_BIG_UINT)IVAL(inbuf,smb_vwv12)) << 32);
-        /*  modified end pling 11/14/2009 */
+        /* Foxconn modified end pling 11/14/2009 */
 
 #endif /* LARGE_SMB_OFF_T */
 	}

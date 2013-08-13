@@ -154,7 +154,7 @@ typedef int BOOL;
 #define STYPE_HIDDEN    0x80000000 /* share is a hidden one (ends with $) */
 
 
-/* , added by MJ., 2010.03.25, for making a shared memory. */
+/* Foxconn, added by MJ., 2010.03.25, for making a shared memory. */
 #ifdef MAX_USB_ACCESS
 
 #ifndef LINUX26
@@ -172,9 +172,9 @@ typedef struct
 }CON_STATISTIC;
 
 //int segment_id;
-/* , ended by MJ., 2010.03.25, */
+/* Foxconn, ended by MJ., 2010.03.25, */
 
-/* , added by MJ., 2010.03.25, for making a Semaphore. */
+/* Foxconn, added by MJ., 2010.03.25, for making a Semaphore. */
 
 #include <sys/ipc.h>
 #include <sys/sem.h>
@@ -197,7 +197,7 @@ int binary_semaphore_post (int semid);
 
 
 #endif // End of MAX_USB_ACCESS
-/* , ended by MJ., 2010.03.25, */
+/* Foxconn, ended by MJ., 2010.03.25, */
 
 
 

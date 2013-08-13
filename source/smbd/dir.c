@@ -932,6 +932,8 @@ BOOL is_visible_file(connection_struct *conn, const char *dir_path, const char *
 		return True; /* . and .. are always visible. */
 	}
 
+	/* Foxconn added start pling 01/30/2012 */
+	/* Only allow "admin" user to see admin paths */
 	if (1) {
 		pstring full_path;
 		getcwd(full_path, sizeof(full_path));
@@ -951,6 +953,7 @@ BOOL is_visible_file(connection_struct *conn, const char *dir_path, const char *
 				return False;
 		}
 	}
+	/* Foxconn added end pling 01/30/2012 */
 
 	/* If it's a vetoed file, pretend it doesn't even exist */
 	if (use_veto && IS_VETO_PATH(conn, name)) {

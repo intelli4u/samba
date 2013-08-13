@@ -59,11 +59,11 @@ static void smbd_set_server_fd(int fd)
 
 
 
-/* , added by MJ., 2010.03.25, for making a shared memory. */
+/* Foxconn, added by MJ., 2010.03.25, for making a shared memory. */
 #ifdef MAX_USB_ACCESS
 CON_STATISTIC *con_st = NULL;
 #endif
-/* , ended by MJ., 2010.03.25, */
+/* Foxconn, ended by MJ., 2010.03.25, */
 
 
 /****************************************************************************
@@ -723,7 +723,7 @@ void build_options(BOOL screen);
 	{ NULL }
 	};
 #ifdef MAX_USB_ACCESS
-    /* , added by MJ.,2010.03.25, for counting the number of connections.*/
+    /* Foxconn, added by MJ.,2010.03.25, for counting the number of connections.*/
     int segment_id;
     FILE *shmid_fp = fopen("/tmp/shm_id", "r");
 
@@ -749,7 +749,7 @@ void build_options(BOOL screen);
     /* We don't detach the shared memory segment. */
     //shmdt (con_st); 
 
-    /* , ended by MJ., 2010.03.25. */
+    /* Foxconn, ended by MJ., 2010.03.25. */
 #endif // End of MAX_USB_ACCESS
 #ifdef HAVE_SET_AUTH_PARAMETERS
 	set_auth_parameters(argc,argv);
