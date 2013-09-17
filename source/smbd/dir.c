@@ -1010,6 +1010,30 @@ BOOL is_visible_file(connection_struct *conn, const char *dir_path, const char *
 		return True; /* . and .. are always visible. */
 	}
 
+	/* Foxconn added start pling 01/30/2012 */
+	/* Only allow "admin" user to see admin paths */
+	if (1) {
+		pstring full_path;
+		getcwd(full_path, sizeof(full_path));
+		pstrcat(full_path, "/");
+		if (strcmp(dir_path, "./")) {
+			pstrcat(full_path, dir_path);
+			pstrcat(full_path, "/");
+		}
+		pstrcat(full_path, name);
+
+		/* "full_path" is in format "/tmp/mnt/usbx/partx/xxx", 
+		 * skip the leading /tmp/mnt/ */
+		if (IS_ADMIN_PATH(conn, &full_path[9])) {
+			if (strcmp(conn->user, "admin") == 0)
+				return True;
+			else
+				return False;
+		}else
+			DEBUG(10,("%s %d\n", __FUNCTION__,__LINE__));
+	}
+	/* Foxconn added end pling 01/30/2012 */
+
 	/* If it's a vetoed file, pretend it doesn't even exist */
 	if (use_veto && IS_VETO_PATH(conn, name)) {
 		DEBUG(10,("is_visible_file: file %s is vetoed.\n", name ));

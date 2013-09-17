@@ -1598,7 +1598,7 @@ void strupper_m(char *s)
 	   (ie. they match for the first 128 chars) */
 
 	while (*s && !(((unsigned char)s[0]) & 0x80)) {
-		*s = toupper_ascii((unsigned char)*s);
+		*s = toupper((unsigned char)*s);
 		s++;
 	}
 

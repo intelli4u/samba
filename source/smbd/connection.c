@@ -22,6 +22,12 @@
 
 static TDB_CONTEXT *tdb;
 
+#ifdef MAX_USB_ACCESS
+extern CON_STATISTIC *con_st;
+extern int binary_semaphore_post (int semid);
+extern int binary_semaphore_wait (int semid);
+#endif
+
 /****************************************************************************
  Return the connection tdb context (used for message send all).
 ****************************************************************************/
@@ -156,6 +162,15 @@ BOOL claim_connection(connection_struct *conn, const char *name,int max_connecti
 	struct connections_key key;
 	struct connections_data crec;
 	TDB_DATA kbuf, dbuf;
+    struct count_stat cs;
+
+#ifdef MAX_USB_ACCESS	
+	if(con_st != NULL)
+    {
+		if ( ( con_st->num ) >= MAX_CON_NUM)
+	    	return False;
+	}
+#endif	 
 
 	if (!tdb) {
 		if ( (tdb =conn_tdb_ctx()) == NULL ) {

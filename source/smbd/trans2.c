@@ -32,7 +32,35 @@ extern int smb_read_error;
 extern uint32 global_client_caps;
 extern struct current_user current_user;
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+/* Foxconn modified start pling 11/25/2009 */
 #define get_file_size(sbuf) ((sbuf).st_size)
+#if 0
+#define get_file_size(sbuf)  get_file_size2(sbuf)
+static SMB_BIG_UINT get_file_size2(struct stat st)
+{
+    SMB_BIG_UINT file_size_64;
+    SMB_BIG_UINT order;
+
+    /* Check whether file size > 4GB which exceeds 32-bit st->st_size 
+     *  st->sb_blocks in units of 512 bytes.
+     *  If 'st->sb_blocks' x 512 > 4GB, then this file > 4GB.
+     */
+    if (st.st_blocks >= 8388608L)
+    {
+        order = st.st_blocks / 8388608L;  // order = # of 4GB
+        file_size_64 = 0x100000000 * order + (unsigned long)(st.st_size);
+    }
+    else
+        file_size_64 = st.st_size & 0xFFFFFFFF;
+
+    return file_size_64;
+}
+#endif
+/* Foxconn modified end pling 11/25/2009 */
+/*Foxconn modify end by Hank 09/13/2013*/
+
 #define DIR_ENTRY_SAFETY_MARGIN 4096
 
 static char *store_file_unix_basic(connection_struct *conn,
@@ -78,7 +106,14 @@ SMB_BIG_UINT get_allocation_size(connection_struct *conn, files_struct *fsp, con
 #if defined(HAVE_STAT_ST_BLOCKS) && defined(STAT_ST_BLOCKSIZE)
 	ret = (SMB_BIG_UINT)STAT_ST_BLOCKSIZE * (SMB_BIG_UINT)sbuf->st_blocks;
 #else
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+    /* Foxconn modified start pling 11/25/2009 */
+    /* Set the correct allocation size, even for large files */
 	ret = (SMB_BIG_UINT)get_file_size(*sbuf);
+	/*ret = (SMB_BIG_UINT)STAT_ST_BLOCKSIZE * (SMB_BIG_UINT)sbuf->st_blocks;*/
+    /* Foxconn modified start pling 11/25/2009 */
+	/*Foxconn modify end by Hank 09/13/2013*/
 #endif
 
 	if (fsp && fsp->initial_allocation_size)
@@ -1107,7 +1142,13 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 	uint32 reskey=0;
 	long prev_dirpos=0;
 	uint32 mode=0;
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+    /* Foxconn modified start pling 11/23/2009 */
 	SMB_OFF_T file_size = 0;
+	/*SMB_BIG_UINT file_size = 0;*/
+    /* Foxconn modified start pling 11/23/2009 */
+	/*Foxconn modify end by Hank 09/13/2013*/
 	SMB_BIG_UINT allocation_size = 0;
 	uint32 len;
 	struct timespec mdate_ts, adate_ts, create_date_ts;
@@ -1403,8 +1444,18 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date_timespec(p,adate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+            /* Foxconn modified start pling 11/23/2009 */
 			SOFF_T(p,0,file_size); p += 8;
+			/*SOFF64_T(p,0,file_size); p += 8;*/
+            /* Foxconn modified end pling 11/23/2009 */
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue where file size > 4GB. */
 			SOFF_T(p,0,allocation_size); p += 8;
+			/*SOFF64_T(p,0,allocation_size); p += 8;*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			SIVAL(p,0,nt_extmode); p += 4;
 			q = p; p += 4; /* q is placeholder for name length. */
 			{
@@ -1449,8 +1500,16 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date_timespec(p,adate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB. */
 			SOFF_T(p,0,file_size); p += 8;
 			SOFF_T(p,0,allocation_size); p += 8;
+			/*SOFF64_T(p,0,file_size); p += 8;
+			SOFF64_T(p,0,allocation_size); p += 8;*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			SIVAL(p,0,nt_extmode); p += 4;
 			len = srvstr_push(outbuf, p + 4, fname, -1, STR_TERMINATE_ASCII);
 			SIVAL(p,0,len);
@@ -1470,8 +1529,16 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date_timespec(p,adate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix Win7 DOS prompt can't get correct file size > 4GB */
 			SOFF_T(p,0,file_size); p += 8;
 			SOFF_T(p,0,allocation_size); p += 8;
+			/*SOFF64_T(p,0,file_size); p += 8;
+			SOFF64_T(p,0,allocation_size); p += 8;*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			SIVAL(p,0,nt_extmode); p += 4;
 			q = p; p += 4; /* q is placeholder for name length. */
 			{
@@ -1515,8 +1582,16 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date_timespec(p,adate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB. */
 			SOFF_T(p,0,file_size); p += 8;
 			SOFF_T(p,0,allocation_size); p += 8;
+			/*SOFF64_T(p,0,file_size); p += 8;
+			SOFF64_T(p,0,allocation_size); p += 8;*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			SIVAL(p,0,nt_extmode); p += 4;
 			q = p; p += 4; /* q is placeholder for name length. */
 			{
@@ -1546,8 +1621,16 @@ static BOOL get_lanman2_dir_entry(connection_struct *conn,
 			put_long_date_timespec(p,adate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
 			put_long_date_timespec(p,mdate_ts); p += 8;
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB. */
 			SOFF_T(p,0,file_size); p += 8;
 			SOFF_T(p,0,allocation_size); p += 8;
+			/*SOFF64_T(p,0,file_size); p += 8;
+			SOFF64_T(p,0,allocation_size); p += 8;*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			SIVAL(p,0,nt_extmode); p += 4;
 			q = p; p += 4; /* q is placeholder for name length */
 			{
@@ -3156,7 +3239,13 @@ static int call_trans2qfilepathinfo(connection_struct *conn, char *inbuf, char *
 	uint16 info_level;
 	int mode=0;
 	int nlink;
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+	/* Foxconn modified start pling 12/15/2010 */
 	SMB_OFF_T file_size=0;
+	/*SMB_BIG_UINT file_size = 0;*/
+	/* Foxconn modified end pling 12/15/2010 */
+	/*Foxconn modify end by Hank 09/13/2013*/
 	SMB_BIG_UINT allocation_size=0;
 	unsigned int data_size = 0;
 	unsigned int param_size = 2;
@@ -3559,8 +3648,16 @@ total_data=%u (should be %u)\n", (unsigned int)total_data, (unsigned int)IVAL(pd
 
 			DEBUG(10,("call_trans2qfilepathinfo: SMB_FILE_STANDARD_INFORMATION\n"));
 			data_size = 24;
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB*/
 			SOFF_T(pdata,0,allocation_size);
 			SOFF_T(pdata,8,file_size);
+			/*SOFF64_T(pdata,0,allocation_size);
+			SOFF64_T(pdata,8,file_size);*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			SIVAL(pdata,16,nlink);
 			SCVAL(pdata,20,delete_pending?1:0);
 			SCVAL(pdata,21,(mode&aDIR)?1:0);
@@ -3609,14 +3706,28 @@ total_data=%u (should be %u)\n", (unsigned int)total_data, (unsigned int)IVAL(pd
 		case SMB_QUERY_FILE_ALLOCATION_INFO:
 			DEBUG(10,("call_trans2qfilepathinfo: SMB_FILE_ALLOCATION_INFORMATION\n"));
 			data_size = 8;
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB*/
 			SOFF_T(pdata,0,allocation_size);
+			/*SOFF64_T(pdata,0,allocation_size);*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			break;
 
 		case SMB_FILE_END_OF_FILE_INFORMATION:
 		case SMB_QUERY_FILE_END_OF_FILEINFO:
 			DEBUG(10,("call_trans2qfilepathinfo: SMB_FILE_END_OF_FILE_INFORMATION\n"));
 			data_size = 8;
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB.*/
 			SOFF_T(pdata,0,file_size);
+			/*SOFF64_T(pdata,0,file_size);*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			break;
 
 		case SMB_QUERY_FILE_ALL_INFO:
@@ -3631,8 +3742,16 @@ total_data=%u (should be %u)\n", (unsigned int)total_data, (unsigned int)IVAL(pd
 			SIVAL(pdata,32,mode);
 			SIVAL(pdata,36,0); /* padding. */
 			pdata += 40;
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 12/15/2010 */
+			/* Fix Linux smb client can't see file > 4GB */
 			SOFF_T(pdata,0,allocation_size);
 			SOFF_T(pdata,8,file_size);
+			/*SOFF64_T(pdata,0,allocation_size);
+			SOFF64_T(pdata,8,file_size);*/
+			/* Foxconn modified end pling 12/15/2010 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			SIVAL(pdata,16,nlink);
 			SCVAL(pdata,20,delete_pending);
 			SCVAL(pdata,21,(mode&aDIR)?1:0);
@@ -3716,7 +3835,14 @@ total_data=%u (should be %u)\n", (unsigned int)total_data, (unsigned int)IVAL(pd
 				size_t byte_len = dos_PutUniCode(pdata+24,"::$DATA", (size_t)0xE, False);
 				SIVAL(pdata,0,0); /* ??? */
 				SIVAL(pdata,4,byte_len); /* Byte length of unicode string ::$DATA */
+				/*Foxconn modify start by Hank 09/13/2013*/
+				/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+				/* Foxconn modified start pling 03/11/2011 */
+				/* Fix potential incorrect file size issue if file size > 4GB.*/
 				SOFF_T(pdata,8,file_size);
+				/*SOFF64_T(pdata,8,file_size);*/
+				/* Foxconn modified end pling 03/11/2011 */
+				/*Foxconn modify end by Hank 09/13/2013*/
 				SOFF_T(pdata,16,allocation_size);
 				data_size = 24 + byte_len;
 			}
@@ -3725,7 +3851,14 @@ total_data=%u (should be %u)\n", (unsigned int)total_data, (unsigned int)IVAL(pd
 		case SMB_QUERY_COMPRESSION_INFO:
 		case SMB_FILE_COMPRESSION_INFORMATION:
 			DEBUG(10,("call_trans2qfilepathinfo: SMB_FILE_COMPRESSION_INFORMATION\n"));
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB.*/
 			SOFF_T(pdata,0,file_size);
+			/*SOFF64_T(pdata,0,file_size);*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			SIVAL(pdata,8,0); /* ??? */
 			SIVAL(pdata,12,0); /* ??? */
 			data_size = 16;
@@ -3737,8 +3870,16 @@ total_data=%u (should be %u)\n", (unsigned int)total_data, (unsigned int)IVAL(pd
 			put_long_date_timespec(pdata+8,atime_ts);
 			put_long_date_timespec(pdata+16,mtime_ts); /* write time */
 			put_long_date_timespec(pdata+24,mtime_ts); /* change time */
+			/*Foxconn modify start by Hank 09/13/2013*/
+			/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+			/* Foxconn modified start pling 03/11/2011 */
+			/* Fix potential incorrect file size issue if file size > 4GB.*/
 			SOFF_T(pdata,32,allocation_size);
 			SOFF_T(pdata,40,file_size);
+			/*SOFF64_T(pdata,32,allocation_size);
+			SOFF64_T(pdata,40,file_size);*/
+			/* Foxconn modified end pling 03/11/2011 */
+			/*Foxconn modify end by Hank 09/13/2013*/
 			SIVAL(pdata,48,mode);
 			SIVAL(pdata,52,0); /* ??? */
 			data_size = 56;

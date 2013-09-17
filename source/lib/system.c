@@ -316,6 +316,31 @@ int sys_lstat(const char *fname,SMB_STRUCT_STAT *sbuf)
 	return ret;
 }
 
+/* Foxconn added start pling 11/25/2009 */
+/*******************************************************************
+ An lstat() wrapper that will deal with 64 bit filesizes.
+********************************************************************/
+SMB_BIG_UINT get_real_file_size(struct stat *st)
+{
+    SMB_BIG_UINT file_size_64;
+    SMB_BIG_UINT order;
+
+    /* Check whether file size > 4GB which exceeds 32-bit st->st_size 
+     *  st->st_blocks in units of 512 bytes.
+     *  If 'st->sb_blocks' x 512 > 4GB, then this file > 4GB.
+     */
+    if (st->st_blocks >= 8388608L)
+    {
+        order = st->st_blocks / 8388608L;  // order = # of 4GB
+        file_size_64 = 0x100000000 * order + (unsigned long)(st->st_size);
+    }
+    else
+        file_size_64 = st->st_size & 0xFFFFFFFF;
+
+    return file_size_64;
+}
+/* Foxconn added end pling 11/25/2009 */
+
 /*******************************************************************
  An ftruncate() wrapper that will deal with 64 bit filesizes.
 ********************************************************************/
@@ -333,12 +358,23 @@ int sys_ftruncate(int fd, SMB_OFF_T offset)
  An lseek() wrapper that will deal with 64 bit filesizes.
 ********************************************************************/
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+/* Foxconn modified start pling 11/18/2009 */
+extern __off64_t lseek64 (int __fd, __off64_t __offset, int __whence);
+
 SMB_OFF_T sys_lseek(int fd, SMB_OFF_T offset, int whence)
+/*SMB_BIG_UINT sys_lseek(int fd, SMB_BIG_UINT offset, int whence)*/
+/* Foxconn modified end pling 11/18/2009 */
 {
 #if defined(HAVE_EXPLICIT_LARGEFILE_SUPPORT) && defined(HAVE_OFF64_T) && defined(HAVE_LSEEK64)
 	return lseek64(fd, offset, whence);
 #else
+    /* Foxconn modified start pling 11/19/2009 */
 	return lseek(fd, offset, whence);
+	/*return lseek64(fd, offset, whence);*/
+    /* Foxconn modified end pling 11/19/2009 */
+/*Foxconn modify end by Hank 09/13/2013*/
 #endif
 }
 

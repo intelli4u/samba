@@ -489,7 +489,13 @@ int reply_ntcreate_and_X(connection_struct *conn,
 	   reply bits separately. */
 	int oplock_request = 0;
 	uint32 fattr=0;
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+    /* Foxconn modified start pling 11/25/2009 */
 	SMB_OFF_T file_len = 0;
+	/*SMB_BIG_UINT file_len = 0;*/
+    /* Foxconn modified end pling 11/25/2009 */
+	/*Foxconn modify end by Hank 09/13/2013*/
 	SMB_STRUCT_STAT sbuf;
 	int info = 0;
 	files_struct *fsp = NULL;
@@ -821,7 +827,10 @@ int reply_ntcreate_and_X(connection_struct *conn,
 		
 	restore_case_semantics(conn, file_attributes);
 
-	file_len = sbuf.st_size;
+    /* Foxconn modified start pling 11/25/2009 */
+	//file_len = sbuf.st_size;
+	file_len = get_real_file_size(&sbuf);
+    /* Foxconn modified end pling 11/25/2009 */
 	fattr = dos_mode(conn,fname,&sbuf);
 	if(fattr == 0) {
 		fattr = FILE_ATTRIBUTE_NORMAL;
@@ -932,9 +941,21 @@ int reply_ntcreate_and_X(connection_struct *conn,
 	p += 8;
 	SIVAL(p,0,fattr); /* File Attributes. */
 	p += 4;
+	
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+    /* Foxconn modified start pling 11/25/2009 */
+    /* Use 64 bit file size to support large files */
 	SOFF_T(p, 0, get_allocation_size(conn,fsp,&sbuf));
+	/*SOFF64_T(p, 0, get_allocation_size(conn,fsp,&sbuf));*/
+    /* Foxconn modified end pling 11/25/2009 */
 	p += 8;
+    /* Foxconn modified start pling 11/25/2009 */
+    /* Use 64 bit file size to support large files */
 	SOFF_T(p,0,file_len);
+    /*SOFF64_T(p,0,file_len);*/
+    /* Foxconn modified end pling 11/25/2009 */
+	/*Foxconn modify end by Hank 09/13/2013*/
 	p += 8;
 	if (flags & EXTENDED_RESPONSE_REQUIRED) {
 		SSVAL(p,2,0x7);
