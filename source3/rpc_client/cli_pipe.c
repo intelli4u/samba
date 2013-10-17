@@ -399,6 +399,7 @@ static NTSTATUS cli_pipe_validate_current_pdu(TALLOC_CTX *mem_ctx,
 						struct ncacn_packet *pkt,
 						DATA_BLOB *pdu,
 						uint8_t expected_pkt_type,
+						uint32_t call_id,
 						DATA_BLOB *rdata,
 						DATA_BLOB *reply_pdu)
 {
@@ -497,7 +498,7 @@ static NTSTATUS cli_pipe_validate_current_pdu(TALLOC_CTX *mem_ctx,
 			  "from %s!\n",
 			  (unsigned int)pkt->ptype,
 			  rpccli_pipe_txt(talloc_tos(), cli)));
-		return NT_STATUS_INVALID_INFO_CLASS;
+		return NT_STATUS_RPC_PROTOCOL_ERROR;
 	}
 
 	if (pkt->ptype != expected_pkt_type) {
@@ -898,6 +899,7 @@ static void rpc_api_pipe_got_pdu(struct tevent_req *subreq)
 						state->cli, state->pkt,
 						&state->incoming_frag,
 						state->expected_pkt_type,
+						state->call_id,
 						&rdata,
 						&state->reply_pdu);
 
