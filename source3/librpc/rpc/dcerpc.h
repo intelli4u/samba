@@ -39,6 +39,7 @@ struct NL_AUTH_MESSAGE;
 struct pipe_auth_data {
 	enum dcerpc_AuthType auth_type;
 	enum dcerpc_AuthLevel auth_level;
+	bool verified_bitmask1;
 
 	void *auth_ctx;
 
