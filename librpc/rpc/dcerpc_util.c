@@ -27,6 +27,7 @@
 #include "librpc/rpc/dcerpc.h"
 #include "librpc/gen_ndr/ndr_dcerpc.h"
 #include "rpc_common.h"
+#include "lib/util/bitmap.h"
 
 /* we need to be able to get/set the fragment length without doing a full
    decode */
