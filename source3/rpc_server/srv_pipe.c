@@ -1544,6 +1544,41 @@ static bool api_rpcTNP(struct pipes_struct *p, struct ncacn_packet *pkt,
 		       const struct api_struct *api_rpc_cmds, int n_cmds,
 		       const struct ndr_syntax_id *syntax);
 
+static bool srv_pipe_check_verification_trailer(struct pipes_struct *p,
+						struct ncacn_packet *pkt,
+						struct pipe_rpc_fns *pipe_fns)
+{
+	TALLOC_CTX *frame = talloc_stackframe();
+	struct dcerpc_sec_verification_trailer *vt = NULL;
+	const uint32_t bitmask1 =
+		p->auth.client_hdr_signing ? DCERPC_SEC_VT_CLIENT_SUPPORTS_HEADER_SIGNING : 0;
+	const struct dcerpc_sec_vt_pcontext pcontext = {
+		.abstract_syntax = pipe_fns->syntax,
+		.transfer_syntax = ndr_transfer_syntax_ndr,
+	};
+	const struct dcerpc_sec_vt_header2 header2 =
+	       dcerpc_sec_vt_header2_from_ncacn_packet(pkt);
+	struct ndr_pull *ndr;
+	enum ndr_err_code ndr_err;
+	bool ret = false;
+
+	ndr = ndr_pull_init_blob(&p->in_data.data, frame);
+	if (ndr == NULL) {
+		goto done;
+	}
+
+	ndr_err = ndr_pop_dcerpc_sec_verification_trailer(ndr, frame, &vt);
+	if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
+		goto done;
+	}
+
+	ret = dcerpc_sec_verification_trailer_check(vt, &bitmask1,
+						    &pcontext, &header2);
+done:
+	TALLOC_FREE(frame);
+	return ret;
+}
+
 /****************************************************************************
  Find the correct RPC function to call for this request.
  If the pipe is authenticated then become the correct UNIX user
@@ -1579,6 +1614,13 @@ static bool api_pipe_request(struct pipes_struct *p,
 	if ( pipe_fns ) {
 		TALLOC_CTX *frame = talloc_stackframe();
 		ret = api_rpcTNP(p, pkt, pipe_fns->cmds, pipe_fns->n_cmds);
+		TALLOC_FREE(frame);
+		return true;
+	}
+
+	if (!become_authenticated_pipe_user(p->session_info)) {
+		DEBUG(1, ("Failed to become pipe user!\n"));
+		data_blob_free(&p->out_data.rdata);
 		TALLOC_FREE(frame);
 	}
 	else {
