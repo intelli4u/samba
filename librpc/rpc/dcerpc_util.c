@@ -342,3 +342,194 @@ NTSTATUS dcerpc_read_ncacn_packet_recv(struct tevent_req *req,
 	tevent_req_received(req);
 	return NT_STATUS_OK;
 }
+
+struct dcerpc_sec_vt_header2 dcerpc_sec_vt_header2_from_ncacn_packet(const struct ncacn_packet *pkt)
+{
+	struct dcerpc_sec_vt_header2 ret;
+
+	ZERO_STRUCT(ret);
+	ret.ptype = pkt->ptype;
+	memcpy(&ret.drep, pkt->drep, sizeof(ret.drep));
+	ret.call_id = pkt->call_id;
+
+	switch (pkt->ptype) {
+	case DCERPC_PKT_REQUEST:
+		ret.context_id = pkt->u.request.context_id;
+		ret.opnum      = pkt->u.request.opnum;
+		break;
+
+	case DCERPC_PKT_RESPONSE:
+		ret.context_id = pkt->u.response.context_id;
+		break;
+
+	case DCERPC_PKT_FAULT:
+		ret.context_id = pkt->u.fault.context_id;
+		break;
+
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+bool dcerpc_sec_vt_header2_equal(const struct dcerpc_sec_vt_header2 *v1,
+				 const struct dcerpc_sec_vt_header2 *v2)
+{
+	if (v1->ptype != v2->ptype) {
+		return false;
+	}
+
+	if (memcmp(v1->drep, v2->drep, sizeof(v1->drep)) != 0) {
+		return false;
+	}
+
+	if (v1->call_id != v2->call_id) {
+		return false;
+	}
+
+	if (v1->context_id != v2->context_id) {
+		return false;
+	}
+
+	if (v1->opnum != v2->opnum) {
+		return false;
+	}
+
+	return true;
+}
+
+static bool dcerpc_sec_vt_is_valid(const struct dcerpc_sec_verification_trailer *r)
+{
+	bool ret = false;
+	TALLOC_CTX *frame = talloc_stackframe();
+	struct bitmap *commands_seen;
+	int i;
+
+	if (r->count.count == 0) {
+		ret = true;
+		goto done;
+	}
+
+	if (memcmp(r->magic, DCERPC_SEC_VT_MAGIC, sizeof(r->magic)) != 0) {
+		goto done;
+	}
+
+	commands_seen = bitmap_talloc(frame, DCERPC_SEC_VT_COMMAND_ENUM + 1);
+	if (commands_seen == NULL) {
+		goto done;
+	}
+
+	for (i=0; i < r->count.count; i++) {
+		enum dcerpc_sec_vt_command_enum cmd =
+			r->commands[i].command & DCERPC_SEC_VT_COMMAND_ENUM;
+
+		if (bitmap_query(commands_seen, cmd)) {
+			/* Each command must appear at most once. */
+			goto done;
+		}
+		bitmap_set(commands_seen, cmd);
+
+		switch (cmd) {
+		case DCERPC_SEC_VT_COMMAND_BITMASK1:
+		case DCERPC_SEC_VT_COMMAND_PCONTEXT:
+		case DCERPC_SEC_VT_COMMAND_HEADER2:
+			break;
+		default:
+			if ((r->commands[i].u._unknown.length % 4) != 0) {
+				goto done;
+			}
+			break;
+		}
+	}
+	ret = true;
+done:
+	TALLOC_FREE(frame);
+	return ret;
+}
+
+#define CHECK(msg, ok)						\
+do {								\
+	if (!ok) {						\
+		DEBUG(10, ("SEC_VT check %s failed\n", msg));	\
+		return false;					\
+	}							\
+} while(0)
+
+#define CHECK_SYNTAX(msg, s1, s2)					\
+do {								\
+	if (!ndr_syntax_id_equal(&s1, &s2)) {				\
+		TALLOC_CTX *frame = talloc_stackframe();		\
+		DEBUG(10, ("SEC_VT check %s failed: %s vs. %s\n", msg,	\
+			   ndr_syntax_id_to_string(frame, &s1),		\
+			   ndr_syntax_id_to_string(frame, &s1)));	\
+		TALLOC_FREE(frame);					\
+		return false;						\
+	}								\
+} while(0)
+
+
+bool dcerpc_sec_verification_trailer_check(
+		const struct dcerpc_sec_verification_trailer *vt,
+		const uint32_t *bitmask1,
+		const struct dcerpc_sec_vt_pcontext *pcontext,
+		const struct dcerpc_sec_vt_header2 *header2)
+{
+	size_t i;
+
+	if (!dcerpc_sec_vt_is_valid(vt)) {
+		return false;
+	}
+
+	for (i=0; i < vt->count.count; i++) {
+		struct dcerpc_sec_vt *c = &vt->commands[i];
+
+		switch (c->command & DCERPC_SEC_VT_COMMAND_ENUM) {
+		case DCERPC_SEC_VT_COMMAND_BITMASK1:
+			if (bitmask1 == NULL) {
+				CHECK("Bitmask1 must_process_command",
+				      !(c->command & DCERPC_SEC_VT_MUST_PROCESS));
+				break;
+			}
+
+			if (c->u.bitmask1 & DCERPC_SEC_VT_CLIENT_SUPPORTS_HEADER_SIGNING) {
+				CHECK("Bitmask1 client_header_signing",
+				      *bitmask1 & DCERPC_SEC_VT_CLIENT_SUPPORTS_HEADER_SIGNING);
+			}
+			break;
+
+		case DCERPC_SEC_VT_COMMAND_PCONTEXT:
+			if (pcontext == NULL) {
+				CHECK("Pcontext must_process_command",
+				      !(c->command & DCERPC_SEC_VT_MUST_PROCESS));
+				break;
+			}
+
+			CHECK_SYNTAX("Pcontect abstract_syntax",
+				     pcontext->abstract_syntax,
+				     c->u.pcontext.abstract_syntax);
+			CHECK_SYNTAX("Pcontext transfer_syntax",
+				     pcontext->transfer_syntax,
+				     c->u.pcontext.transfer_syntax);
+			break;
+
+		case DCERPC_SEC_VT_COMMAND_HEADER2: {
+			if (header2 == NULL) {
+				CHECK("Header2 must_process_command",
+				      !(c->command & DCERPC_SEC_VT_MUST_PROCESS));
+				break;
+			}
+
+			CHECK("Header2", dcerpc_sec_vt_header2_equal(header2, &c->u.header2));
+			break;
+		}
+
+		default:
+			CHECK("Unknown must_process_command",
+			      !(c->command & DCERPC_SEC_VT_MUST_PROCESS));
+			break;
+		}
+	}
+
+	return true;
+}
