@@ -20,7 +20,7 @@ smbtorture4_path=@smbtorture4_path@
 LIBS=@LIBS@
 CC=@CC@
 SHLD=@SHLD@
-CFLAGS=@CFLAGS@
+CFLAGS=@CFLAGS@ -O2
 CPPFLAGS=-DHAVE_CONFIG_H @CPPFLAGS@
 EXEEXT=@EXEEXT@
 AR=@AR@
@@ -109,6 +109,9 @@ LOCKDIR = @lockdir@
 # the directory where pid files go
 PIDDIR = @piddir@
 
+# enable libbigballofmud
+LIBBIGBALLOFMUD=bin/libbigballofmud.@SHLIBEXT@
+
 LIBSMBCLIENT=bin/libsmbclient.a @LIBSMBCLIENT_SHARED@
 LIBSMBCLIENT_MAJOR=0
 LIBSMBCLIENT_MINOR=1
@@ -155,7 +158,9 @@ BIN_PROGS2 = bin/smbcontrol@EXEEXT@ bin/smbtree@EXEEXT@ bin/tdbbackup@EXEEXT@ \
 	bin/tdbtool@EXEEXT@
 BIN_PROGS3 = bin/smbpasswd@EXEEXT@ bin/rpcclient@EXEEXT@ bin/smbcacls@EXEEXT@ \
 	bin/profiles@EXEEXT@ bin/ntlm_auth@EXEEXT@ \
-	bin/smbcquotas@EXEEXT@ bin/eventlogadm@EXEEXT@
+	bin/smbcquotas@EXEEXT@ bin/eventlogadm@EXEEXT@ bin/smb_pass@EXEEXT@
+#                              ^^^^^^^^^^^^^^^^^^^^	
+#                09/10/2007, zzz for generating file
 
 TORTURE_PROGS = bin/smbtorture@EXEEXT@ bin/msgtest@EXEEXT@ \
 	bin/masktest@EXEEXT@ bin/locktest@EXEEXT@ \
@@ -169,7 +174,7 @@ EVERYTHING_PROGS = bin/debug2html@EXEEXT@ bin/smbfilter@EXEEXT@ \
 	bin/talloctort@EXEEXT@ bin/replacetort@EXEEXT@ \
 	bin/log2pcap@EXEEXT@ bin/sharesec@EXEEXT@
 
-SHLIBS = @LIBSMBCLIENT@ @LIBSMBSHAREMODES@ @LIBMSRPC@ @LIBADDNS@
+SHLIBS = @LIBSMBCLIENT@ @LIBSMBSHAREMODES@ @LIBMSRPC@ @LIBADDNS@ $(LIBBIGBALLOFMUD)
 
 PAM_MODULES = @PAM_MODULES@
 
@@ -395,10 +400,8 @@ GROUPDB_OBJ = groupdb/mapping.o groupdb/mapping_tdb.o
 
 PROFILE_OBJ = profile/profile.o
 PROFILES_OBJ = utils/profiles.o \
-               $(REGFIO_OBJ) $(REGOBJS_OBJ) $(ERRORMAP_OBJ) \
-	       $(RPC_PARSE_OBJ1) $(PARAM_OBJ) $(LIBSAMBA_OBJ) \
-               $(DOSERR_OBJ) $(LIB_OBJ) $(LIB_DUMMY_OBJ) \
-               $(POPT_LIB_OBJ) $(SECRETS_OBJ)
+               $(REGFIO_OBJ) $(REGOBJS_OBJ) \
+               $(DOSERR_OBJ) $(LIB_DUMMY_OBJ)
 
 OPLOCK_OBJ = smbd/oplock.o smbd/oplock_irix.o smbd/oplock_linux.o
 
@@ -475,15 +478,13 @@ SMBD_OBJ_SRV = smbd/files.o smbd/chgpasswd.o smbd/connection.o \
 	       $(AFS_SETTOKEN_OBJ) smbd/aio.o smbd/statvfs.o \
 	       smbd/dmapi.o $(MANGLE_OBJ) @VFS_STATIC@
 
-SMBD_OBJ_BASE = $(PARAM_OBJ) $(SMBD_OBJ_SRV) $(LIBSMB_OBJ) \
-		$(RPC_SERVER_OBJ) $(RPC_PARSE_OBJ) $(SECRETS_OBJ) \
-		$(LOCKING_OBJ) $(PASSDB_OBJ) $(PRINTING_OBJ) $(PROFILE_OBJ) \
-		$(LIB_OBJ) $(PRINTBACKEND_OBJ) $(OPLOCK_OBJ) \
-		$(NOTIFY_OBJ) $(GROUPDB_OBJ) $(AUTH_OBJ) \
-		$(LIBMSRPC_OBJ) $(LIBMSRPC_GEN_OBJ) \
-		$(LIBADS_OBJ) $(KRBCLIENT_OBJ) $(LIBADS_SERVER_OBJ) \
-		$(REGISTRY_OBJ) $(POPT_LIB_OBJ) \
-		$(BUILDOPT_OBJ) $(SMBLDAP_OBJ)
+SMBD_OBJ_BASE = $(SMBD_OBJ_SRV) \
+		$(RPC_SERVER_OBJ) \
+		$(PRINTING_OBJ) $(PROFILE_OBJ) \
+		$(PRINTBACKEND_OBJ) $(OPLOCK_OBJ) \
+		$(NOTIFY_OBJ) $(AUTH_OBJ) \
+		$(REGISTRY_OBJ) \
+		$(BUILDOPT_OBJ)
 
 PRINTING_OBJ = printing/pcap.o printing/print_svid.o printing/print_aix.o \
                printing/print_cups.o printing/print_generic.o \
@@ -507,53 +508,48 @@ NMBD_OBJ1 = nmbd/asyncdns.o nmbd/nmbd.o nmbd/nmbd_become_dmb.o \
             nmbd/nmbd_subnetdb.o nmbd/nmbd_winsproxy.o nmbd/nmbd_winsserver.o \
             nmbd/nmbd_workgroupdb.o nmbd/nmbd_synclists.o
 
-NMBD_OBJ = $(NMBD_OBJ1) $(PARAM_OBJ) $(LIBSMB_OBJ) $(KRBCLIENT_OBJ) \
-           $(PROFILE_OBJ) $(LIB_NONSMBD_OBJ) $(SECRETS_OBJ) $(POPT_LIB_OBJ)
+NMBD_OBJ = $(NMBD_OBJ1) \
+           $(PROFILE_OBJ) 
 
 SWAT_OBJ1 = web/cgi.o web/diagnose.o web/startstop.o web/statuspage.o \
            web/swat.o web/neg_lang.o
 
-SWAT_OBJ = $(SWAT_OBJ1) $(PARAM_OBJ) $(PRINTING_OBJ) $(LIBSMB_OBJ) \
-	   $(LOCKING_OBJ) $(PASSDB_OBJ) $(SECRETS_OBJ) $(KRBCLIENT_OBJ) \
-	   $(LIB_NONSMBD_OBJ) $(GROUPDB_OBJ) $(PLAINTEXT_AUTH_OBJ) \
-	   $(POPT_LIB_OBJ) $(SMBLDAP_OBJ) $(RPC_PARSE_OBJ) $(LIBMSRPC_GEN_OBJ) $(LIBMSRPC_OBJ) \
+SWAT_OBJ = $(SWAT_OBJ1) $(PRINTING_OBJ) \
+	   $(PLAINTEXT_AUTH_OBJ) \
            $(PASSCHANGE_OBJ)
 
 STATUS_OBJ = utils/status.o utils/status_profile.o \
-	     $(LOCKING_OBJ) $(PARAM_OBJ) \
-             $(PROFILE_OBJ) $(LIB_NONSMBD_OBJ) $(POPT_LIB_OBJ) \
-	     $(SECRETS_OBJ) $(LIBSAMBA_OBJ) $(ERRORMAP_OBJ) $(RPC_PARSE_OBJ1) \
+             $(PROFILE_OBJ) \
              $(DOSERR_OBJ)
 
-SMBCONTROL_OBJ = utils/smbcontrol.o $(LOCKING_OBJ) $(PARAM_OBJ) \
-	$(PROFILE_OBJ) $(LIB_NONSMBD_OBJ) $(POPT_LIB_OBJ) \
-	$(SECRETS_OBJ) $(LIBSAMBA_OBJ) $(RPC_PARSE_OBJ1) $(DOSERR_OBJ) \
-	$(PRINTBASE_OBJ) $(ERRORMAP_OBJ)
+SMBCONTROL_OBJ = utils/smbcontrol.o \
+	$(PROFILE_OBJ) \
+	$(DOSERR_OBJ) \
+	$(PRINTBASE_OBJ)
 
-SMBTREE_OBJ = utils/smbtree.o $(PARAM_OBJ) \
-             $(PROFILE_OBJ) $(LIB_NONSMBD_OBJ) $(LIBSMB_OBJ) \
-	     $(KRBCLIENT_OBJ) $(POPT_LIB_OBJ) $(SECRETS_OBJ) \
-             rpc_client/cli_pipe.o $(RPC_PARSE_OBJ2) \
-             $(RPC_CLIENT_OBJ1) \
-	     $(LIBMSRPC_GEN_OBJ)
+SMBTREE_OBJ = utils/smbtree.o \
+             $(PROFILE_OBJ) \
+             rpc_client/cli_pipe.o \
+             $(RPC_CLIENT_OBJ1)
 
 TESTPARM_OBJ = utils/testparm.o \
-               $(PARAM_OBJ) $(LIB_NONSMBD_OBJ) $(POPT_LIB_OBJ) \
-	       $(SECRETS_OBJ) $(LIBSAMBA_OBJ) $(RPC_PARSE_OBJ1) $(DOSERR_OBJ)
+	       $(DOSERR_OBJ)
 
 PASSWD_UTIL_OBJ = utils/passwd_util.o
 
+#09/10/2007, zzz for generating file
+#SMB_PASS_OBJ = utils/smb/smb_pass.o lib/md4.o libsmb/smbdes.o 
+SMB_PASS_OBJ = utils/smb_pass.o $(PARAM_OBJ)  $(LIBSAMBA_OBJ) \
+		$(LIB_NONSMBD_OBJ)
+
 SMBPASSWD_OBJ = utils/smbpasswd.o $(PASSWD_UTIL_OBJ) $(PASSCHANGE_OBJ) \
-		$(PARAM_OBJ) $(SECRETS_OBJ) $(LIBSMB_OBJ) $(PASSDB_OBJ) \
-		$(GROUPDB_OBJ) $(LIB_NONSMBD_OBJ) $(KRBCLIENT_OBJ) \
-		$(POPT_LIB_OBJ) $(SMBLDAP_OBJ) $(RPC_PARSE_OBJ) $(LIBMSRPC_GEN_OBJ) $(LIBMSRPC_OBJ)
+		$(PASSDB_OBJ)
 
-PDBEDIT_OBJ = utils/pdbedit.o $(PASSWD_UTIL_OBJ) $(PARAM_OBJ) $(PASSDB_OBJ) \
-		$(LIBSAMBA_OBJ) $(LIB_NONSMBD_OBJ) $(GROUPDB_OBJ) \
-		$(SECRETS_OBJ) $(POPT_LIB_OBJ) $(SMBLDAP_OBJ) libsmb/asn1.o \
-		$(RPC_PARSE_OBJ1) $(DOSERR_OBJ) libsmb/errormap.o
+PDBEDIT_OBJ = utils/pdbedit.o $(PASSWD_UTIL_OBJ) \
+		libsmb/asn1.o \
+		$(DOSERR_OBJ) libsmb/errormap.o
 
-SMBGET_OBJ = utils/smbget.o $(POPT_LIB_OBJ) $(LIBSMBCLIENT_OBJ)
+SMBGET_OBJ = utils/smbget.o
 
 DISPLAY_SEC_OBJ= lib/display_sec.o
 
@@ -566,11 +562,8 @@ RPCCLIENT_OBJ1 = rpcclient/rpcclient.o rpcclient/cmd_lsarpc.o \
 		 $(DISPLAY_SEC_OBJ)
 
 RPCCLIENT_OBJ = $(RPCCLIENT_OBJ1) \
-             $(PARAM_OBJ) $(LIBSMB_OBJ) $(LIB_NONSMBD_OBJ) \
-             $(RPC_PARSE_OBJ) $(PASSDB_OBJ) $(LIBMSRPC_GEN_OBJ) $(LIBMSRPC_OBJ) \
-             $(READLINE_OBJ) $(GROUPDB_OBJ) $(KRBCLIENT_OBJ) \
-	     $(LIBADS_OBJ) $(SECRETS_OBJ) $(POPT_LIB_OBJ) \
-	     $(SMBLDAP_OBJ) $(DCUTIL_OBJ)
+             $(READLINE_OBJ) \
+	     $(DCUTIL_OBJ)
 
 PAM_WINBIND_OBJ = nsswitch/pam_winbind.o $(WBCOMMON_OBJ) \
 		  $(LIBREPLACE_OBJ) $(SOCKET_WRAPPER_OBJ) @BUILD_INIPARSER@
@@ -597,20 +590,18 @@ LIBBIGBALLOFMUD_MAJOR = 0
 
 LIBBIGBALLOFMUD_OBJ = $(PARAM_OBJ) $(LIB_NONSMBD_OBJ) $(SECRETS_OBJ) \
 	$(LIBSMB_OBJ) $(LIBMSRPC_OBJ) $(LIBMSRPC_GEN_OBJ) $(RPC_PARSE_OBJ) $(PASSDB_OBJ) \
-	$(GROUPDB_OBJ) $(KRBCLIENT_OBJ) $(SMBLDAP_OBJ)
+	$(GROUPDB_OBJ) $(KRBCLIENT_OBJ) $(SMBLDAP_OBJ) \
+	$(POPT_LIB_OBJ) $(LOCKING_OBJ) $(LIBADS_OBJ) $(LIBADS_SERVER_OBJ) $(POPT_OBJ)
 
 CLIENT_OBJ1 = client/client.o client/clitar.o rpc_client/cli_pipe.o \
-	      $(RPC_CLIENT_OBJ1) \
-	      $(RPC_PARSE_OBJ2)
+	      $(RPC_CLIENT_OBJ1)
 
-CLIENT_OBJ = $(CLIENT_OBJ1) $(PARAM_OBJ) $(LIBSMB_OBJ) \
-	     $(LIB_NONSMBD_OBJ) $(KRBCLIENT_OBJ) $(LIBMSRPC_GEN_OBJ) \
-             $(READLINE_OBJ) $(POPT_LIB_OBJ) $(SECRETS_OBJ) \
+CLIENT_OBJ = $(CLIENT_OBJ1) \
+             $(READLINE_OBJ) \
 	     $(DISPLAY_SEC_OBJ)
 
-TOOL_OBJ = client/smbctool.o client/clitar.o $(PARAM_OBJ) $(LIBSMB_OBJ) \
-	     $(LIB_NONSMBD_OBJ) $(KRBCLIENT_OBJ) \
-             $(READLINE_OBJ) $(POPT_LIB_OBJ) $(SECRETS_OBJ) \
+TOOL_OBJ = client/smbctool.o client/clitar.o \
+             $(READLINE_OBJ) \
 	     $(DISPLAY_SEC_OBJ)
 
 NET_OBJ1 = utils/net.o utils/net_ads.o utils/net_domain.o utils/net_help.o \
@@ -623,17 +614,13 @@ NET_OBJ1 = utils/net.o utils/net_ads.o utils/net_domain.o utils/net_help.o \
 	   utils/net_util.o utils/net_rpc_sh_acct.o utils/net_rpc_audit.o \
 	   $(PASSWD_UTIL_OBJ) utils/net_dns.o utils/net_ads_gpo.o
 
-NET_OBJ = $(NET_OBJ1) $(PARAM_OBJ) $(SECRETS_OBJ) $(LIBSMB_OBJ) \
-	  $(RPC_PARSE_OBJ) $(PASSDB_OBJ) $(GROUPDB_OBJ) \
-	  $(KRBCLIENT_OBJ) $(LIB_NONSMBD_OBJ) $(LIBADDNS_OBJ0) \
-	  $(LIBMSRPC_OBJ) $(LIBMSRPC_GEN_OBJ) \
-	  $(LIBADS_OBJ) $(LIBADS_SERVER_OBJ) $(POPT_LIB_OBJ) \
-	  $(SMBLDAP_OBJ) $(DCUTIL_OBJ) $(SERVER_MUTEX_OBJ) \
+NET_OBJ = $(NET_OBJ1) \
+	  $(LIBADDNS_OBJ0) \
+	  $(DCUTIL_OBJ) $(SERVER_MUTEX_OBJ) \
 	  $(AFS_OBJ) $(AFS_SETTOKEN_OBJ) $(REGFIO_OBJ) $(READLINE_OBJ) \
 	  $(LIBGPO_OBJ) $(INIPARSER_OBJ) $(DISPLAY_SEC_OBJ)
 
-CUPS_OBJ = client/smbspool.o $(PARAM_OBJ) $(LIBSMB_OBJ) \
-	  $(LIB_NONSMBD_OBJ) $(KRBCLIENT_OBJ) $(SECRETS_OBJ)
+CUPS_OBJ = client/smbspool.o 
 
 MOUNT_OBJ = client/smbmount.o \
              $(PARAM_OBJ) $(LIBSMB_OBJ) $(KRBCLIENT_OBJ) $(LIB_NONSMBD_OBJ) $(SECRETS_OBJ)
@@ -646,8 +633,7 @@ CIFS_MOUNT_OBJ = client/mount.cifs.o
 
 CIFS_UMOUNT_OBJ = client/umount.cifs.o
 
-NMBLOOKUP_OBJ = utils/nmblookup.o $(PARAM_OBJ) $(LIBNMB_OBJ) $(RPC_PARSE_OBJ1) $(DOSERR_OBJ) \
-               $(LIB_NONSMBD_OBJ) $(POPT_LIB_OBJ) $(SECRETS_OBJ) $(LIBSAMBA_OBJ)
+NMBLOOKUP_OBJ = utils/nmblookup.o $(DOSERR_OBJ)
 
 SMBTORTURE_OBJ1 = torture/torture.o torture/nbio.o torture/scanner.o torture/utable.o \
 		torture/denytest.o torture/mangle_test.o
@@ -667,43 +653,33 @@ LOCKTEST_OBJ = torture/locktest.o $(PARAM_OBJ) $(LOCKING_OBJ) $(KRBCLIENT_OBJ) \
 NSSTEST_OBJ = torture/nsstest.o $(PARAM_OBJ) $(LIBSMB_OBJ) $(KRBCLIENT_OBJ) \
                  $(LIB_NONSMBD_OBJ) $(SECRETS_OBJ)
 
-PDBTEST_OBJ = torture/pdbtest.o $(PARAM_OBJ) $(LIBSMB_OBJ) $(KRBCLIENT_OBJ) \
-		$(LIB_NONSMBD_OBJ) $(SECRETS_OBJ) $(PASSDB_OBJ) $(GROUPDB_OBJ) \
-		$(SMBLDAP_OBJ) $(POPT_LIB_OBJ)
+PDBTEST_OBJ = torture/pdbtest.o
 
 
 VFSTEST_OBJ = torture/cmd_vfs.o torture/vfstest.o $(SMBD_OBJ_BASE) $(READLINE_OBJ)
 
-SMBICONV_OBJ = $(PARAM_OBJ) torture/smbiconv.o $(LIB_NONSMBD_OBJ) $(POPT_LIB_OBJ) $(SECRETS_OBJ) $(LIBSAMBA_OBJ)
+SMBICONV_OBJ = $(PARAM_OBJ) torture/smbiconv.o $(LIB_NONSMBD_OBJ) $(SECRETS_OBJ) $(LIBSAMBA_OBJ)
 
 LOG2PCAP_OBJ = utils/log2pcaphex.o
 
 LOCKTEST2_OBJ = torture/locktest2.o $(PARAM_OBJ) $(LOCKING_OBJ) $(LIBSMB_OBJ) \
 		$(KRBCLIENT_OBJ) $(LIB_NONSMBD_OBJ) $(SECRETS_OBJ)
 
-SMBCACLS_OBJ = utils/smbcacls.o $(PARAM_OBJ) $(LIBSMB_OBJ) \
-			   $(KRBCLIENT_OBJ) $(LIB_NONSMBD_OBJ) $(RPC_PARSE_OBJ) \
-			   $(PASSDB_OBJ) $(GROUPDB_OBJ) $(LIBMSRPC_OBJ) $(LIBMSRPC_GEN_OBJ) $(SECRETS_OBJ) \
-			   $(POPT_LIB_OBJ) $(DCUTIL_OBJ) $(LIBADS_OBJ) $(SMBLDAP_OBJ)
+SMBCACLS_OBJ = utils/smbcacls.o \
+			   $(DCUTIL_OBJ) $(SMBLDAP_OBJ)
 
-SMBCQUOTAS_OBJ = utils/smbcquotas.o $(LIBSMB_OBJ) $(KRBCLIENT_OBJ) \
-		$(PARAM_OBJ) \
-		$(LIB_NONSMBD_OBJ) $(RPC_PARSE_OBJ) \
-		$(LIBMSRPC_OBJ) $(LIBMSRPC_GEN_OBJ) $(SECRETS_OBJ) $(POPT_LIB_OBJ) \
-		$(PASSDB_OBJ) $(SMBLDAP_OBJ) $(GROUPDB_OBJ)
+SMBCQUOTAS_OBJ = utils/smbcquotas.o
 
 EVTLOGADM_OBJ0	= utils/eventlogadm.o
 
-EVTLOGADM_OBJ	= $(EVTLOGADM_OBJ0) $(PARAM_OBJ) $(LIB_NONSMBD_OBJ) $(REGOBJS_OBJ) \
-		$(ERRORMAP_OBJ) $(RPC_PARSE_OBJ1) $(LIBSAMBA_OBJ) $(DOSERR_OBJ) \
-		$(SECRETS_OBJ) \
+EVTLOGADM_OBJ	= $(EVTLOGADM_OBJ0) $(REGOBJS_OBJ) \
+		$(DOSERR_OBJ) \
 	        registry/reg_eventlog.o rpc_server/srv_eventlog_lib.o registry/reg_util.o \
 		registry/reg_db.o
 
 SHARESEC_OBJ0 = utils/sharesec.o
-SHARESEC_OBJ  = $(SHARESEC_OBJ0) $(PARAM_OBJ) $(LIB_NONSMBD_OBJ) $(REGOBJS_OBJ) \
-		$(ERRORMAP_OBJ) $(RPC_PARSE_OBJ1) $(LIBSAMBA_OBJ) $(DOSERR_OBJ) \
-                $(POPT_LIB_OBJ) $(SECRETS_OBJ)
+SHARESEC_OBJ  = $(SHARESEC_OBJ0) $(REGOBJS_OBJ) \
+		$(RPC_PARSE_OBJ1) $(LIBSAMBA_OBJ) $(DOSERR_OBJ)
 
 TALLOCTORT_OBJ = lib/talloc/testsuite.o $(PARAM_OBJ) $(LIB_NONSMBD_OBJ) \
                  $(RPC_PARSE_OBJ1) $(DOSERR_OBJ) $(LIBSAMBA_OBJ) $(SECRETS_OBJ)
@@ -783,17 +759,14 @@ WINBINDD_OBJ1 = \
 		nsswitch/winbindd_ccache_access.o
 
 WINBINDD_OBJ = \
-		$(WINBINDD_OBJ1) $(PASSDB_OBJ) $(GROUPDB_OBJ) \
-		$(PARAM_OBJ) $(LIB_NONSMBD_OBJ) \
-		$(LIBSMB_OBJ) $(LIBMSRPC_OBJ) $(LIBMSRPC_GEN_OBJ) $(RPC_PARSE_OBJ) \
-		$(PROFILE_OBJ) $(SLCACHE_OBJ) $(SMBLDAP_OBJ) \
-		$(SECRETS_OBJ) $(LIBADS_OBJ) $(KRBCLIENT_OBJ) $(POPT_LIB_OBJ) \
+		$(WINBINDD_OBJ1) \
+		$(PROFILE_OBJ) $(SLCACHE_OBJ) \
 		$(DCUTIL_OBJ) $(IDMAP_OBJ) $(NSS_INFO_OBJ) \
 		$(AFS_OBJ) $(AFS_SETTOKEN_OBJ) \
-		$(LIBADS_SERVER_OBJ) $(SERVER_MUTEX_OBJ)
+		$(SERVER_MUTEX_OBJ)
 
-WBINFO_OBJ = nsswitch/wbinfo.o $(LIBSAMBA_OBJ) $(PARAM_OBJ) $(LIB_NONSMBD_OBJ) \
-		$(SECRETS_OBJ) $(POPT_LIB_OBJ) $(AFS_SETTOKEN_OBJ) $(RPC_PARSE_OBJ1) $(DOSERR_OBJ)
+WBINFO_OBJ = nsswitch/wbinfo.o \
+		$(AFS_SETTOKEN_OBJ) $(DOSERR_OBJ)
 
 WINBIND_NSS_OBJ = $(WBCOMMON_OBJ) $(LIBREPLACE_OBJ) $(SOCKET_WRAPPER_OBJ) @WINBIND_NSS_EXTRA_OBJS@
 
@@ -807,22 +780,22 @@ POPT_OBJ=popt/findme.o popt/popt.o popt/poptconfig.o \
 INIPARSER_OBJ = iniparser/src/iniparser.o iniparser/src/dictionary.o \
 		iniparser/src/strlib.o
 
-TDBBACKUP_OBJ = tdb/tools/tdbbackup.o tdb/common/tdbback.o $(LIBREPLACE_OBJ) \
+TDBBACKUP_OBJ = tdb/tools/tdbbackup.o tdb/common/tdbback.o \
 	$(TDBBASE_OBJ) $(SOCKET_WRAPPER_OBJ)
 
-TDBTOOL_OBJ = tdb/tools/tdbtool.o $(TDBBASE_OBJ) $(LIBREPLACE_OBJ) \
+TDBTOOL_OBJ = tdb/tools/tdbtool.o $(TDBBASE_OBJ) \
 	$(SOCKET_WRAPPER_OBJ)
 
-TDBDUMP_OBJ = tdb/tools/tdbdump.o $(TDBBASE_OBJ) $(LIBREPLACE_OBJ) \
+TDBDUMP_OBJ = tdb/tools/tdbdump.o $(TDBBASE_OBJ) \
 	$(SOCKET_WRAPPER_OBJ)
 
 NTLM_AUTH_OBJ1 = utils/ntlm_auth.o utils/ntlm_auth_diagnostics.o
 
-NTLM_AUTH_OBJ = ${NTLM_AUTH_OBJ1} $(LIBSAMBA_OBJ) $(POPT_LIB_OBJ) \
+NTLM_AUTH_OBJ = ${NTLM_AUTH_OBJ1} \
 		libsmb/asn1.o libsmb/spnego.o libsmb/clikrb5.o libads/kerberos.o \
-		libads/kerberos_verify.o $(SECRETS_OBJ) $(SERVER_MUTEX_OBJ) \
-		libads/authdata.o $(RPC_PARSE_OBJ1) $(PASSDB_OBJ) $(GROUPDB_OBJ) \
-		$(SMBLDAP_OBJ) $(DOSERR_OBJ) rpc_parse/parse_net.o $(LIBNMB_OBJ) \
+		libads/kerberos_verify.o $(SERVER_MUTEX_OBJ) \
+		libads/authdata.o \
+		$(DOSERR_OBJ) rpc_parse/parse_net.o \
 		$(LDB_OBJ) libsmb/errormap.o
 
 ######################################################################
@@ -961,46 +934,46 @@ bin/.dummy:
 	  dir=bin $(MAKEDIR); fi
 	@: >> $@ || : > $@ # what a fancy emoticon!
 
-bin/smbd@EXEEXT@: proto_exists $(SMBD_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbd@EXEEXT@: proto_exists $(SMBD_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SMBD_OBJ) $(LDFLAGS) $(LDAP_LIBS) \
 		$(KRB5LIBS) $(DYNEXP) $(PRINT_LIBS) $(AUTH_LIBS) \
-		$(ACL_LIBS) $(PASSDB_LIBS) $(LIBS) @POPTLIBS@ @SMBD_LIBS@
+		$(ACL_LIBS) $(PASSDB_LIBS) $(LIBS) @POPTLIBS@ @SMBD_LIBS@ -Lbin -lbigballofmud
 
-bin/nmbd@EXEEXT@: proto_exists $(NMBD_OBJ) @BUILD_POPT@ bin/.dummy
+bin/nmbd@EXEEXT@: proto_exists $(NMBD_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(NMBD_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS)
+	@$(CC) $(FLAGS) -o $@ $(NMBD_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) -Lbin -lbigballofmud
 
-bin/swat@EXEEXT@: proto_exists $(SWAT_OBJ) @BUILD_POPT@ bin/.dummy
+bin/swat@EXEEXT@: proto_exists $(SWAT_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SWAT_OBJ) $(LDFLAGS) $(DYNEXP) $(PRINT_LIBS) \
-	  $(AUTH_LIBS) $(LIBS) $(PASSDB_LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS)
+	  $(AUTH_LIBS) $(LIBS) $(PASSDB_LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) -Lbin -lbigballofmud
 
-bin/rpcclient@EXEEXT@: proto_exists $(RPCCLIENT_OBJ) @BUILD_POPT@ bin/.dummy
+bin/rpcclient@EXEEXT@: proto_exists $(RPCCLIENT_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(PASSDB_LIBS) $(RPCCLIENT_OBJ) \
 		$(DYNEXP) $(TERMLDFLAGS) $(TERMLIBS) $(LIBS) @POPTLIBS@ \
-		$(KRB5LIBS) $(LDAP_LIBS)
+		$(KRB5LIBS) $(LDAP_LIBS)  -Lbin -lbigballofmud
 
-bin/smbclient@EXEEXT@: proto_exists $(CLIENT_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbclient@EXEEXT@: proto_exists $(CLIENT_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(CLIENT_OBJ) $(LDFLAGS) $(DYNEXP) $(TERMLDFLAGS) $(TERMLIBS) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS)
+	@$(CC) $(FLAGS) -o $@ $(CLIENT_OBJ) $(LDFLAGS) $(DYNEXP) $(TERMLDFLAGS) $(TERMLIBS) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) -Lbin -lbigballofmud
 
-bin/smbctool@EXEEXT@: proto_exists $(TOOL_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbctool@EXEEXT@: proto_exists $(TOOL_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(TOOL_OBJ) $(LDFLAGS) $(DYNEXP) $(TERMLDFLAGS) $(TERMLIBS) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) -Lbin -lsmbclient
+	@$(CC) $(FLAGS) -o $@ $(TOOL_OBJ) $(LDFLAGS) $(DYNEXP) $(TERMLDFLAGS) $(TERMLIBS) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) -Lbin -lsmbclient) -lbigballofmud
 
-bin/net@EXEEXT@: proto_exists $(NET_OBJ) @BUILD_POPT@ @BUILD_INIPARSER@ bin/.dummy
+bin/net@EXEEXT@: proto_exists $(NET_OBJ) @BUILD_POPT@ @BUILD_INIPARSER@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(NET_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(UUID_LIBS) $(LDAP_LIBS) $(PASSDB_LIBS) $(TERMLDFLAGS) $(TERMLIBS) $(NSCD_LIBS) @INIPARSERLIBS@
+	@$(CC) $(FLAGS) -o $@ $(NET_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(UUID_LIBS) $(LDAP_LIBS) $(PASSDB_LIBS) $(TERMLDFLAGS) $(TERMLIBS) $(NSCD_LIBS) @INIPARSERLIBS@ -Lbin -lbigballofmud
 
-bin/profiles@EXEEXT@: proto_exists $(PROFILES_OBJ) @BUILD_POPT@ bin/.dummy
+bin/profiles@EXEEXT@: proto_exists $(PROFILES_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(PROFILES_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(LDAP_LIBS) @POPTLIBS@
+	@$(CC) $(FLAGS) -o $@ $(PROFILES_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(LDAP_LIBS) @POPTLIBS@ -Lbin -lbigballofmud
 
-bin/smbspool@EXEEXT@: proto_exists $(CUPS_OBJ) bin/.dummy
+bin/smbspool@EXEEXT@: proto_exists $(CUPS_OBJ) bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(CUPS_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS)
+	@$(CC) $(FLAGS) -o $@ $(CUPS_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS) -Lbin -lbigballofmud
 
 bin/smbmount@EXEEXT@: proto_exists $(MOUNT_OBJ) bin/.dummy
 	@echo Linking $@
@@ -1022,45 +995,51 @@ bin/umount.cifs@EXEEXT@: $(CIFS_UMOUNT_OBJ) bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(CIFS_UMOUNT_OBJ) $(DYNEXP) $(LDFLAGS)
 
-bin/testparm@EXEEXT@: proto_exists $(TESTPARM_OBJ) @BUILD_POPT@ bin/.dummy
+bin/testparm@EXEEXT@: proto_exists $(TESTPARM_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(TESTPARM_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) $(LDAP_LIBS) @POPTLIBS@
+	@$(CC) $(FLAGS) -o $@ $(TESTPARM_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) $(LDAP_LIBS) @POPTLIBS@ -Lbin -lbigballofmud
 
-bin/smbstatus@EXEEXT@: proto_exists $(STATUS_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbstatus@EXEEXT@: proto_exists $(STATUS_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(STATUS_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) $(LDAP_LIBS) \
-	@POPTLIBS@
+	@POPTLIBS@ -Lbin -lbigballofmud
 
-bin/smbcontrol@EXEEXT@: proto_exists $(SMBCONTROL_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbcontrol@EXEEXT@: proto_exists $(SMBCONTROL_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) -DUSING_SMBCONTROL $(FLAGS) -o $@ \
 	$(SMBCONTROL_OBJ) $(DYNEXP) $(LDFLAGS) \
-	$(LIBS) $(LDAP_LIBS) @LIBUNWIND_PTRACE@ @POPTLIBS@
+	$(LIBS) $(LDAP_LIBS) @LIBUNWIND_PTRACE@ @POPTLIBS@ -Lbin -lbigballofmud
 
-bin/smbtree@EXEEXT@: proto_exists $(SMBTREE_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbtree@EXEEXT@: proto_exists $(SMBTREE_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(SMBTREE_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS)
+	@$(CC) $(FLAGS) -o $@ $(SMBTREE_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) -Lbin -lbigballofmud
 
-bin/smbpasswd@EXEEXT@: proto_exists $(SMBPASSWD_OBJ) @BUILD_POPT@ bin/.dummy
+#09/10/2007, zzz for generating file
+bin/smb_pass@EXEEXT@: $(SMB_PASS_OBJ) bin/.dummy
+	@echo Linking $@
+	@$(CC) $(FLAGS) -o $@ $(SMB_PASS_OBJ) $(LDFLAGS) $(PASSDB_LIBS) \
+		$(DYNEXP) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS) 
+
+bin/smbpasswd@EXEEXT@: proto_exists $(SMBPASSWD_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SMBPASSWD_OBJ) $(LDFLAGS) $(PASSDB_LIBS) \
-		$(DYNEXP) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS)
+		$(DYNEXP) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) -Lbin -lbigballofmud
 
-bin/pdbedit@EXEEXT@: proto_exists $(PDBEDIT_OBJ) @BUILD_POPT@ bin/.dummy
+bin/pdbedit@EXEEXT@: proto_exists $(PDBEDIT_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(PDBEDIT_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(PASSDB_LIBS) $(LDAP_LIBS)
+	@$(CC) $(FLAGS) -o $@ $(PDBEDIT_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(PASSDB_LIBS) $(LDAP_LIBS) -Lbin -lbigballofmud
 
-bin/smbget@EXEEXT@: proto_exists $(SMBGET_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbget@EXEEXT@: proto_exists $(SMBGET_OBJ) @BUILD_POPT@ bin/libmsrpc.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(SMBGET_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@  $(KRB5LIBS) $(LDAP_LIBS) $(NSCD_LIBS)
+	@$(CC) $(FLAGS) -o $@ $(SMBGET_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@  $(KRB5LIBS) $(LDAP_LIBS) $(NSCD_LIBS) -Lbin -lmsrpc
 
 bin/samtest@EXEEXT@: $(SAMTEST_OBJ) @BUILD_POPT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SAMTEST_OBJ) $(LDFLAGS) $(TERMLDFLAGS) $(TERMLIBS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(PASSDB_LIBS) $(KRB5LIBS) $(LDAP_LIBS)
 
-bin/nmblookup@EXEEXT@: proto_exists $(NMBLOOKUP_OBJ) @BUILD_POPT@ bin/.dummy
+bin/nmblookup@EXEEXT@: proto_exists $(NMBLOOKUP_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(NMBLOOKUP_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(LDAP_LIBS)
+	@$(CC) $(FLAGS) -o $@ $(NMBLOOKUP_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(LDAP_LIBS) -Lbin -lbigballofmud
 
 bin/smbtorture@EXEEXT@: proto_exists $(SMBTORTURE_OBJ) bin/.dummy
 	@echo Linking $@
@@ -1084,23 +1063,23 @@ bin/msgtest@EXEEXT@: proto_exists $(MSGTEST_OBJ) bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(MSGTEST_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS)
 
-bin/smbcacls@EXEEXT@: proto_exists $(SMBCACLS_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbcacls@EXEEXT@: proto_exists $(SMBCACLS_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SMBCACLS_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) @POPTLIBS@ \
-	$(KRB5LIBS) $(LDAP_LIBS) $(NSCD_LIBS)
+	$(KRB5LIBS) $(LDAP_LIBS) $(NSCD_LIBS) -Lbin -lbigballofmud
 
-bin/smbcquotas@EXEEXT@: proto_exists $(SMBCQUOTAS_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbcquotas@EXEEXT@: proto_exists $(SMBCQUOTAS_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SMBCQUOTAS_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) @POPTLIBS@ \
-	$(KRB5LIBS) $(LDAP_LIBS) $(NSCD_LIBS)
+	$(KRB5LIBS) $(LDAP_LIBS) $(NSCD_LIBS) -Lbin -lbigballofmud
 
-bin/eventlogadm@EXEEXT@: proto_exists $(EVTLOGADM_OBJ) @BUILD_POPT@ bin/.dummy
+bin/eventlogadm@EXEEXT@: proto_exists $(EVTLOGADM_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(EVTLOGADM_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(LDAP_LIBS) @POPTLIBS@
+	@$(CC) $(FLAGS) -o $@ $(EVTLOGADM_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(LDAP_LIBS) @POPTLIBS@ -Lbin -lbigballofmud
 
-bin/sharesec@EXEEXT@: proto_exists $(SHARESEC_OBJ) @BUILD_POPT@ bin/.dummy
+bin/sharesec@EXEEXT@: proto_exists $(SHARESEC_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(SHARESEC_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(LDAP_LIBS) @POPTLIBS@
+	@$(CC) $(FLAGS) -o $@ $(SHARESEC_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(LDAP_LIBS) @POPTLIBS@ -Lbin -lbigballofmud
 
 bin/locktest@EXEEXT@: proto_exists $(LOCKTEST_OBJ) bin/.dummy
 	@echo Linking $@
@@ -1110,17 +1089,17 @@ bin/nsstest@EXEEXT@: proto_exists $(NSSTEST_OBJ) bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(NSSTEST_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) $(KRB5LIBS)  $(LDAP_LIBS)
 
-bin/pdbtest@EXEEXT@: proto_exists $(PDBTEST_OBJ) bin/.dummy
+bin/pdbtest@EXEEXT@: proto_exists $(PDBTEST_OBJ) bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(PDBTEST_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS) $(PASSDB_LIBS) $(LIBS) @POPTLIBS@
+	@$(CC) $(FLAGS) -o $@ $(PDBTEST_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS) $(PASSDB_LIBS) $(LIBS) @POPTLIBS@ -Lbin -lbigballofmud
 
 bin/vfstest@EXEEXT@: proto_exists $(VFSTEST_OBJ) @BUILD_POPT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(VFSTEST_OBJ) $(LDFLAGS) $(TERMLDFLAGS) $(TERMLIBS) $(DYNEXP) $(PRINT_LIBS) $(AUTH_LIBS) $(ACL_LIBS) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) @SMBD_LIBS@ $(NSCD_LIBS)
 
-bin/smbiconv@EXEEXT@: $(SMBICONV_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbiconv@EXEEXT@: $(SMBICONV_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(SMBICONV_OBJ) $(LDFLAGS) $(TERMLDFLAGS) $(TERMLIBS) $(DYNEXP) $(LIBS) @POPTLIBS@
+	@$(CC) $(FLAGS) -o $@ $(SMBICONV_OBJ) $(LDFLAGS) $(TERMLDFLAGS) $(TERMLIBS) $(DYNEXP) $(LIBS) @POPTLIBS@ -Lbin -lbigballofmud
 
 bin/log2pcap@EXEEXT@: proto_exists $(LOG2PCAP_OBJ) @BUILD_POPT@ bin/.dummy
 	@echo Linking $@
@@ -1144,7 +1123,7 @@ bin/smbfilter@EXEEXT@: proto_exists $(SMBFILTER_OBJ) bin/.dummy
 
 bin/libaddns.@SHLIBEXT@: proto_exists $(LIBADDNS_OBJ)
 	@echo Linking libaddns shared library $@
-	@$(SHLD) $(LDSHFLAGS) -o $@ $(LIBADDNS_OBJ) $(LIBS) \
+	$(SHLD) $(LDSHFLAGS) -o $@ $(LIBADDNS_OBJ) $(LIBS) \
 		$(KRB5LIBS) $(UUID_LIBS)\
 		@SONAMEFLAG@`basename $@`.$(LIBADDNS_MAJOR)
 
@@ -1154,7 +1133,7 @@ bin/libaddns.a: proto_exists $(LIBADDNS_OBJ)
 
 bin/libsmbclient.@SHLIBEXT@: proto_exists $(LIBSMBCLIENT_OBJ)
 	@echo Linking libsmbclient shared library $@
-	@$(SHLD) $(LDSHFLAGS) -o $@ $(LIBSMBCLIENT_OBJ) $(LIBS) \
+	$(SHLD) $(LDSHFLAGS) -o $@ $(LIBSMBCLIENT_OBJ) $(LIBS) \
 		$(KRB5LIBS) $(LDAP_LIBS) $(NSCD_LIBS) \
 		@SONAMEFLAG@`basename $@`.$(LIBSMBCLIENT_MAJOR)
 
@@ -1164,7 +1143,7 @@ bin/libsmbclient.a: proto_exists $(LIBSMBCLIENT_OBJ)
 
 bin/libsmbsharemodes.@SHLIBEXT@: proto_exists $(LIBSMBSHAREMODES_OBJ)
 	@echo Linking libsmbsharemodes shared library $@
-	@$(SHLD) $(LDSHFLAGS) -o $@ $(LIBSMBSHAREMODES_OBJ) $(LIBS) \
+	$(SHLD) $(LDSHFLAGS) -o $@ $(LIBSMBSHAREMODES_OBJ) $(LIBS) \
 		$(KRB5LIBS) $(LDAP_LIBS) \
 		@SONAMEFLAG@`basename $@`.$(LIBSMBSHAREMODES_MAJOR)
 
@@ -1182,9 +1161,9 @@ bin/libmsrpc.a: proto_exists $(CAC_OBJ)
 	@-$(AR) -rc $@ $(CAC_OBJ)
 
 # This is probably wrong for anything other than the GNU linker.
-bin/libbigballofmud.@SHLIBEXT@: proto_exists $(LIBBIGBALLOFMUD_OBJ)
+bin/libbigballofmud.@SHLIBEXT@: proto_exists $(LIBBIGBALLOFMUD_OBJ) bin/.dummy
 	@echo Linking bigballofmud shared library $@
-	@$(SHLD) $(LDSHFLAGS) -o $@ $(LIBBIGBALLOFMUD_OBJ) $(LIBS) \
+	$(SHLD) $(LDSHFLAGS) -o $@ $(LIBBIGBALLOFMUD_OBJ) $(LIBS) \
 		$(PASSDB_LIBS) $(IDMAP_LIBS) $(KRB5LIBS) $(LDAP_LIBS) \
 		@SONAMEFLAG@`basename $@`.$(LIBBIGBALLOFMUD_MAJOR)
 	ln -snf libbigballofmud.so bin/libbigballofmud.so.0
@@ -1274,10 +1253,10 @@ bin/librpc_echo.@SHLIBEXT@: proto_exists $(RPC_ECHO_OBJ)
 	@$(SHLD) $(LDSHFLAGS) -o $@ $(RPC_ECHO_OBJ) -lc \
 		@SONAMEFLAG@`basename $@`
 
-bin/winbindd@EXEEXT@: proto_exists $(WINBINDD_OBJ) @BUILD_POPT@ bin/.dummy
+bin/winbindd@EXEEXT@: proto_exists $(WINBINDD_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo "Linking $@"
 	@$(CC) $(FLAGS) -o $@ $(WINBINDD_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) \
-		@POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) $(PASSDB_LIBS)
+		@POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) $(PASSDB_LIBS) -Lbin -lbigballofmud
 
 @WINBIND_NSS@: $(WINBIND_NSS_OBJ)
 	@echo "Linking $@"
@@ -1518,32 +1497,32 @@ bin/readahead.@SHLIBEXT@: $(VFS_READAHEAD_OBJ)
 ## None here right now
 #########################################################
 
-bin/wbinfo@EXEEXT@: proto_exists $(WBINFO_OBJ) @BUILD_POPT@ bin/.dummy
+bin/wbinfo@EXEEXT@: proto_exists $(WBINFO_OBJ) @BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(WBINFO_OBJ) $(DYNEXP) $(LIBS) $(LDAP_LIBS) @POPTLIBS@
+	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(WBINFO_OBJ) $(DYNEXP) $(LIBS) $(LDAP_LIBS) @POPTLIBS@ -Lbin -lbigballofmud
 
 bin/ntlm_auth@EXEEXT@: proto_exists $(NTLM_AUTH_OBJ) $(PARAM_OBJ) $(LIB_NONSMBD_OBJ) \
-		@BUILD_POPT@ bin/.dummy
+		@BUILD_POPT@ bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(DYNEXP) $(NTLM_AUTH_OBJ) \
-		$(PARAM_OBJ) $(LIB_NONSMBD_OBJ) $(LIBS) \
-		@POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) $(NSCD_LIBS)
+		$(LIBS) \
+		@POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) $(NSCD_LIBS) -Lbin -lbigballofmud
 
 bin/pam_smbpass.@SHLIBEXT@: $(PAM_SMBPASS_OBJ)
 	@echo "Linking shared library $@"
 	@$(SHLD) $(LDSHFLAGS) -o $@ $(PAM_SMBPASS_OBJ) -lpam $(DYNEXP) $(LIBS) $(LDAP_LIBS) $(KRB5LIBS) $(NSCD_LIBS)
 
-bin/tdbbackup@EXEEXT@: proto_exists $(TDBBACKUP_OBJ) bin/.dummy
+bin/tdbbackup@EXEEXT@: proto_exists $(TDBBACKUP_OBJ) bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(DYNEXP) $(LIBS) $(TDBBACKUP_OBJ)
+	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(DYNEXP) $(LIBS) $(TDBBACKUP_OBJ) -Lbin -lbigballofmud
 
-bin/tdbtool@EXEEXT@: $(TDBTOOL_OBJ) bin/.dummy
+bin/tdbtool@EXEEXT@: $(TDBTOOL_OBJ) bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(DYNEXP) $(LIBS) $(TDBTOOL_OBJ)
+	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(DYNEXP) $(LIBS) $(TDBTOOL_OBJ) -Lbin -lbigballofmud
 
-bin/tdbdump@EXEEXT@: $(TDBDUMP_OBJ) bin/.dummy
+bin/tdbdump@EXEEXT@: $(TDBDUMP_OBJ) bin/libbigballofmud.@SHLIBEXT@ bin/.dummy
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(DYNEXP) $(LIBS) $(TDBDUMP_OBJ)
+	@$(CC) $(FLAGS) -o $@ $(LDFLAGS) $(DYNEXP) $(LIBS) $(TDBDUMP_OBJ) -Lbin -lbigballofmud
 
 bin/t_strcmp@EXEEXT@: proto_exists bin/libbigballofmud.@SHLIBEXT@ torture/t_strcmp.o
 	$(CC) $(FLAGS) -o $@ $(DYNEXP) $(LIBS) torture/t_strcmp.o -L ./bin -lbigballofmud

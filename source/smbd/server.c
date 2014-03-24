@@ -42,6 +42,12 @@ static SIG_ATOMIC_T got_sig_cld;
 extern int dcelogin_atmost_once;
 #endif /* WITH_DFS */
 
+/* Foxconn, added by MJ., 2010.03.25, for making a shared memory. */
+#ifdef MAX_USB_ACCESS
+CON_STATISTIC *con_st = NULL;
+#endif
+/* Foxconn, ended by MJ., 2010.03.25, */
+
 /* really we should have a top level context structure that has the
    client file descriptor as an element. That would require a major rewrite :(
 
@@ -851,6 +857,39 @@ extern void build_options(BOOL screen);
 	POPT_COMMON_DYNCONFIG
 	POPT_TABLEEND
 	};
+#ifdef MAX_USB_ACCESS
+    /* Foxconn, added by MJ.,2010.03.25, for counting the number of connections.*/
+    int segment_id;
+    FILE *shmid_fp = fopen("/tmp/shm_id", "r");
+
+    if(shmid_fp != NULL)
+    {
+        fscanf(shmid_fp, "%d", &segment_id);
+        /* printf("segment_id:%d\n", segment_id); */
+        fclose(shmid_fp);
+    }
+    else{
+        printf("/tmp/shm_id open failed.\n");
+        segment_id = -1;
+        //exit (1);
+    }
+    /* attach the shared memory segment, at a different address. */
+    if(segment_id != -1){
+		/*Foxconn modify start by Hank 06/20/2013*/
+		/*Modify for connection count can not be decrease*/
+        //con_st = (CON_STATISTIC*) shmat (segment_id, (void*) 0x5000000, 0);
+		con_st = (CON_STATISTIC*) shmat (segment_id, NULL, 0);
+		/*Foxconn modify end by Hank 06/20/2013*/
+        dbgtext("->total con num: %d, by smbd.\n", con_st->num);
+    }
+    else
+        con_st = NULL;
+
+    /* We don't detach the shared memory segment. */
+    //shmdt (con_st); 
+
+    /* Foxconn, ended by MJ., 2010.03.25. */
+#endif // End of MAX_USB_ACCESS
 
 	load_case_tables();
 

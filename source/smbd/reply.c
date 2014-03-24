@@ -1840,6 +1840,35 @@ static NTSTATUS can_delete(connection_struct *conn, char *fname,
 	files_struct *fsp;
 	uint32 dirtype_orig = dirtype;
 	NTSTATUS status;
+	
+	/* Foxconn, add by MJ., for block delete when bftpd is downloading file, 
+     * 2011.05.18 */
+    int fd = -1;
+    struct flock my_lock;
+    char file_path[256] = " ";
+    char slash[5]="/";
+
+    if(conn->origpath != NULL && fname != NULL)
+        snprintf(file_path, 256, "%s/%s", conn->origpath, fname);
+    fd = open(file_path, O_RDWR );
+    
+    my_lock.l_type = F_WRLCK;
+    my_lock.l_whence = SEEK_SET; 
+    my_lock.l_start = 0;
+    my_lock.l_len = 0; /* lock the whole file.*/
+    my_lock.l_pid = getpid();
+    
+    if(fd >=0)
+    {
+        if(!fcntl(fd, F_GETLK, &my_lock)){
+            if(my_lock.l_type != F_UNLCK){
+                close(fd);
+                return NT_STATUS_CANNOT_DELETE;
+            }
+        }
+        close(fd);
+    }
+    /* Foxconn, end by MJ., 2011.05.18 */
 
 	DEBUG(10,("can_delete: %s, dirtype = %d\n", fname, dirtype ));
 
@@ -2531,8 +2560,15 @@ Returning short read of maximum allowed for compatibility with Windows 2000.\n",
  Reply to a read and X - possibly using sendfile.
 ****************************************************************************/
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+/* Foxconn modified start pling 11/24/2009 */
 int send_file_readX(connection_struct *conn, char *inbuf,char *outbuf,int length, int len_outbuf,
 		files_struct *fsp, SMB_OFF_T startpos, size_t smb_maxcnt)
+/*int send_file_readX(connection_struct *conn, char *inbuf,char *outbuf,int length, int len_outbuf,
+		files_struct *fsp, SMB_BIG_UINT startpos, size_t smb_maxcnt)*/
+/* Foxconn modified end pling 11/24/2009 */
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	int outsize = 0;
 	ssize_t nread = -1;
@@ -2579,7 +2615,16 @@ int send_file_readX(connection_struct *conn, char *inbuf,char *outbuf,int length
 		header.length = data - outbuf;
 		header.free = NULL;
 
+		/*Foxconn modify start by Hank 09/13/2013*/
+		/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+        /* Foxconn modified start pling 11/25/2009 */
+        /* force 'startpos' to 32 bit since the 'sendfile' API can 
+         * only handle 32 bit offset.
+         */
 		if ((nread = SMB_VFS_SENDFILE( smbd_server_fd(), fsp, fsp->fh->fd, &header, startpos, smb_maxcnt)) == -1) {
+		//if ((nread = SMB_VFS_SENDFILE( smbd_server_fd(), fsp, fsp->fh->fd, &header, (unsigned long)startpos, smb_maxcnt)) == -1) {
+        /* Foxconn modified end pling 11/25/2009 */
+		/*Foxconn modify end by Hank 09/13/2013*/
 			/* Returning ENOSYS means no data at all was sent. Do this as a normal read. */
 			if (errno == ENOSYS) {
 				goto normal_read;
@@ -2650,7 +2695,13 @@ int send_file_readX(connection_struct *conn, char *inbuf,char *outbuf,int length
 int reply_read_and_X(connection_struct *conn, char *inbuf,char *outbuf,int length,int bufsize)
 {
 	files_struct *fsp = file_fsp(inbuf,smb_vwv2);
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+    /* Foxconn modified start pling 11/24/2009 */
 	SMB_OFF_T startpos = IVAL_TO_SMB_OFF_T(inbuf,smb_vwv3);
+	/*SMB_BIG_UINT startpos = IVAL_TO_SMB_OFF_T(inbuf,smb_vwv3);*/
+    /* Foxconn modified end pling 11/24/2009 */
+	/*Foxconn modify end by Hank 09/13/2013*/
 	ssize_t nread = -1;
 	size_t smb_maxcnt = SVAL(inbuf,smb_vwv5);
 #if 0
@@ -2683,6 +2734,12 @@ int reply_read_and_X(connection_struct *conn, char *inbuf,char *outbuf,int lengt
 			return ERROR_NT(NT_STATUS_INVALID_PARAMETER);
 		}
 	}
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+    /* Foxconn added start pling 11/24/2009 */
+    //startpos &= 0xFFFFFFFFUL;
+    /* Foxconn added end pling 11/24/2009 */
+	/*Foxconn modify end by Hank 09/13/2013*/
 
 	if(CVAL(inbuf,smb_wct) == 12) {
 #ifdef LARGE_SMB_OFF_T
@@ -2692,7 +2749,10 @@ int reply_read_and_X(connection_struct *conn, char *inbuf,char *outbuf,int lengt
 		startpos |= (((SMB_OFF_T)IVAL(inbuf,smb_vwv10)) << 32);
 
 #else /* !LARGE_SMB_OFF_T */
-
+		/*Foxconn modify start by Hank 09/13/2013*/
+		/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+        /* Foxconn modified start pling 11/24/2009 */
+//#if 0
 		/*
 		 * Ensure we haven't been sent a >32 bit offset.
 		 */
@@ -2703,6 +2763,10 @@ int reply_read_and_X(connection_struct *conn, char *inbuf,char *outbuf,int lengt
 			END_PROFILE(SMBreadX);
 			return ERROR_DOS(ERRDOS,ERRbadaccess);
 		}
+//#endif
+		//startpos |= (((SMB_OFF_T)IVAL(inbuf,smb_vwv10)) << 32);
+        /* Foxconn modified end pling 11/24/2009 */
+		/*Foxconn modify end by Hank 09/13/2013*/
 
 #endif /* LARGE_SMB_OFF_T */
 
@@ -3053,7 +3117,13 @@ int reply_write(connection_struct *conn, char *inbuf,char *outbuf,int size,int d
 int reply_write_and_X(connection_struct *conn, char *inbuf,char *outbuf,int length,int bufsize)
 {
 	files_struct *fsp = file_fsp(inbuf,smb_vwv2);
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+    /* Foxconn modified start pling 11/24/2009 */
 	SMB_OFF_T startpos = IVAL_TO_SMB_OFF_T(inbuf,smb_vwv3);
+	/*SMB_BIG_UINT startpos = IVAL_TO_SMB_OFF_T(inbuf,smb_vwv3);*/
+    /* Foxconn modified end pling 11/24/2009 */
+	/*Foxconn modify end by Hank 09/13/2013*/
 	size_t numtowrite = SVAL(inbuf,smb_vwv10);
 	BOOL write_through = BITSETW(inbuf+smb_vwv7,0);
 	ssize_t nwritten = -1;
@@ -3089,6 +3159,16 @@ int reply_write_and_X(connection_struct *conn, char *inbuf,char *outbuf,int leng
 
 	data = smb_base(inbuf) + smb_doff;
 
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+    /* Foxconn added start pling 11/24/2009 */
+    /* Force startpos to 32 bit (unsigned), since
+     * the 'offset' field is 32 bit only.
+     */
+    //startpos &= 0xFFFFFFFFUL;
+    /* Foxconn added end pling 11/24/2009 */
+	/*Foxconn modify end by Hank 09/13/2013*/
+
 	if(CVAL(inbuf,smb_wct) == 14) {
 #ifdef LARGE_SMB_OFF_T
 		/*
@@ -3098,6 +3178,11 @@ int reply_write_and_X(connection_struct *conn, char *inbuf,char *outbuf,int leng
 
 #else /* !LARGE_SMB_OFF_T */
 
+		/*Foxconn modify start by Hank 09/13/2013*/
+		/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+        /* Foxconn modified start pling 11/14/2009 */
+        /* Bypass the file size limitation */
+//#if 0
 		/*
 		 * Ensure we haven't been sent a >32 bit offset.
 		 */
@@ -3108,6 +3193,10 @@ int reply_write_and_X(connection_struct *conn, char *inbuf,char *outbuf,int leng
 			END_PROFILE(SMBwriteX);
 			return ERROR_DOS(ERRDOS,ERRbadaccess);
 		}
+//#endif
+		//startpos |= (((SMB_OFF_T)IVAL(inbuf,smb_vwv12)) << 32);
+        /* Foxconn modified end pling 11/14/2009 */
+		/*Foxconn modify end by Hank 09/13/2013*/
 
 #endif /* LARGE_SMB_OFF_T */
 	}

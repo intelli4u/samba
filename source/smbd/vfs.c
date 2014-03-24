@@ -411,11 +411,25 @@ ssize_t vfs_write_data(files_struct *fsp,const char *buffer,size_t N)
 	return (ssize_t)total;
 }
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+/* Foxconn modified start pling 11/18/2009 */
 ssize_t vfs_pwrite_data(files_struct *fsp,const char *buffer,
                 size_t N, SMB_OFF_T offset)
+/*ssize_t vfs_pwrite_data(files_struct *fsp,const char *buffer,
+                size_t N, SMB_BIG_UINT offset)*/
+/* Foxconn modified end pling 11/18/2009 */
+/*Foxconn modify end by Hank 09/13/2013*/
 {
+	/*Foxconn modify start by Hank 09/13/2013*/
+	/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+    /* Foxconn modified start pling 11/18/2009 */
 	size_t total=0;
 	ssize_t ret;
+	/*SMB_BIG_UINT total=0;
+	SMB_BIG_UINT ret;*/
+    /* Foxconn modified end pling 11/18/2009 */
+	/*Foxconn modify end by Hank 09/13/2013*/
 
 	while (total < N) {
 		ret = SMB_VFS_PWRITE(fsp, fsp->fh->fd, buffer + total,
@@ -452,11 +466,18 @@ int vfs_allocate_file_space(files_struct *fsp, SMB_BIG_UINT len)
 
 	DEBUG(10,("vfs_allocate_file_space: file %s, len %.0f\n", fsp->fsp_name, (double)len ));
 
+    /* Foxconn removed start pling 11/18/2009 */
+    /* Don't check negative length, to avoid "disk full" error 
+     * when copy file from Vista/Win7 to USB.
+     */
+#if 0
 	if (((SMB_OFF_T)len) < 0) {
 		DEBUG(0,("vfs_allocate_file_space: %s negative len requested.\n", fsp->fsp_name ));
 		errno = EINVAL;
 		return -1;
 	}
+#endif
+    /* Foxconn removed end pling 11/18/2009 */
 
 	ret = SMB_VFS_FSTAT(fsp,fsp->fh->fd,&st);
 	if (ret == -1)
@@ -514,13 +535,16 @@ int vfs_set_filelen(files_struct *fsp, SMB_OFF_T len)
 	release_level_2_oplocks_on_change(fsp);
 	DEBUG(10,("vfs_set_filelen: ftruncate %s to len %.0f\n", fsp->fsp_name, (double)len));
 	flush_write_cache(fsp, SIZECHANGE_FLUSH);
-	if ((ret = SMB_VFS_FTRUNCATE(fsp, fsp->fh->fd, len)) != -1) {
-		set_filelen_write_cache(fsp, len);
-		notify_fname(fsp->conn, NOTIFY_ACTION_MODIFIED,
-			     FILE_NOTIFY_CHANGE_SIZE
-			     | FILE_NOTIFY_CHANGE_ATTRIBUTES,
-			     fsp->fsp_name);
-	}
+	 if (len > 0 && len < 0x1000000) {
+		if ((ret = SMB_VFS_FTRUNCATE(fsp, fsp->fh->fd, len)) != -1) {
+			set_filelen_write_cache(fsp, len);
+			notify_fname(fsp->conn, NOTIFY_ACTION_MODIFIED,
+				     FILE_NOTIFY_CHANGE_SIZE
+				     | FILE_NOTIFY_CHANGE_ATTRIBUTES,
+				     fsp->fsp_name);
+		}
+	}else
+		ret=0;
 
 	return ret;
 }

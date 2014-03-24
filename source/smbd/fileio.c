@@ -27,8 +27,13 @@ static BOOL setup_write_cache(files_struct *, SMB_OFF_T);
 /****************************************************************************
  Read from write cache if we can.
 ****************************************************************************/
-
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+/* Foxconn modified start pling 11/25/2009 */
 static BOOL read_from_write_cache(files_struct *fsp,char *data,SMB_OFF_T pos,size_t n)
+/*static BOOL read_from_write_cache(files_struct *fsp,char *data,SMB_BIG_UINT pos,size_t n)*/
+/* Foxconn modified end pling 11/25/2009 */
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	write_cache *wcp = fsp->wcp;
 
@@ -51,7 +56,13 @@ static BOOL read_from_write_cache(files_struct *fsp,char *data,SMB_OFF_T pos,siz
  Read from a file.
 ****************************************************************************/
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+/* Foxconn modified start pling 11/25/2009 */
 ssize_t read_file(files_struct *fsp,char *data,SMB_OFF_T pos,size_t n)
+/*ssize_t read_file(files_struct *fsp,char *data,SMB_BIG_UINT pos,size_t n)*/
+/* Foxconn modified end pling 11/25/2009 */
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	ssize_t ret=0,readret;
 
@@ -116,8 +127,13 @@ static unsigned int allocated_write_caches;
 /****************************************************************************
  *Really* write to a file.
 ****************************************************************************/
-
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+/* Foxconn modified start pling 11/18/2009 */
 static ssize_t real_write_file(files_struct *fsp,const char *data, SMB_OFF_T pos, size_t n)
+/*static ssize_t real_write_file(files_struct *fsp,char *data, SMB_BIG_UINT pos, size_t n)*/
+/* Foxconn modified end pling 11/18/2009 */
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	ssize_t ret;
 
@@ -191,8 +207,13 @@ static int wcp_file_size_change(files_struct *fsp)
 /****************************************************************************
  Write to a file.
 ****************************************************************************/
-
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
+/* Foxconn modified start pling 11/18/2009 */
 ssize_t write_file(files_struct *fsp, const char *data, SMB_OFF_T pos, size_t n)
+/*ssize_t write_file(files_struct *fsp, const char *data, SMB_BIG_UINT pos, size_t n)*/
+/* Foxconn modified end pling 11/18/2009 */
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	write_cache *wcp = fsp->wcp;
 	ssize_t total_written = 0;

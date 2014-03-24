@@ -472,8 +472,10 @@ static BOOL init_srv_share_info_ctr(pipes_struct *p, SRV_SHARE_INFO_CTR *ctr,
 
 	/* Count the number of entries. */
 	for (snum = 0; snum < num_services; snum++) {
-		if (lp_browseable(snum) && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) )
-			num_entries++;
+	        /* foxconn, CSW @ chec whether the pr iv */	 
+		if ( (lp_browseable(snum) ||  p->conn->admin_user ) 
+		      && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) )
+		     num_entries++;
 	}
 
 	*total_entries = num_entries;
@@ -494,8 +496,9 @@ static BOOL init_srv_share_info_ctr(pipes_struct *p, SRV_SHARE_INFO_CTR *ctr,
 		}
 
 		for (snum = *resume_hnd; snum < num_services; snum++) {
-			if (lp_browseable(snum) && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
-				init_srv_share_info_0(p, &info0[i++], snum);
+			if ( (lp_browseable(snum) ||  p->conn->admin_user )  
+			     && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
+	  	             init_srv_share_info_0(p, &info0[i++], snum);
 			}
 		}
 
@@ -514,7 +517,8 @@ static BOOL init_srv_share_info_ctr(pipes_struct *p, SRV_SHARE_INFO_CTR *ctr,
 		}
 
 		for (snum = *resume_hnd; snum < num_services; snum++) {
-			if (lp_browseable(snum) && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
+			if ( (lp_browseable(snum) ||  p->conn->admin_user ) 
+			      && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
 				init_srv_share_info_1(p, &info1[i++], snum);
 			}
 		}
@@ -533,8 +537,9 @@ static BOOL init_srv_share_info_ctr(pipes_struct *p, SRV_SHARE_INFO_CTR *ctr,
 		}
 
 		for (snum = *resume_hnd; snum < num_services; snum++) {
-			if (lp_browseable(snum) && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
-				init_srv_share_info_2(p, &info2[i++], snum);
+			if ( (lp_browseable(snum) ||  p->conn->admin_user )  
+			     && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
+			     init_srv_share_info_2(p, &info2[i++], snum);
 			}
 		}
 
@@ -552,7 +557,8 @@ static BOOL init_srv_share_info_ctr(pipes_struct *p, SRV_SHARE_INFO_CTR *ctr,
 		}
 
 		for (snum = *resume_hnd; snum < num_services; snum++) {
-			if (lp_browseable(snum) && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
+			if ( (lp_browseable(snum) ||  p->conn->admin_user ) 
+			    && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
 				init_srv_share_info_501(p, &info501[i++], snum);
 			}
 		}
@@ -571,7 +577,8 @@ static BOOL init_srv_share_info_ctr(pipes_struct *p, SRV_SHARE_INFO_CTR *ctr,
 		}
 
 		for (snum = *resume_hnd; snum < num_services; snum++) {
-			if (lp_browseable(snum) && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
+			if ( (lp_browseable(snum) ||  p->conn->admin_user ) 
+			     && lp_snum_ok(snum) && (all_shares || !is_hidden_share(snum)) ) {
 				init_srv_share_info_502(p, &info502[i++], snum);
 			}
 		}

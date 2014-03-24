@@ -213,6 +213,7 @@ static NTSTATUS check_ntlm_password(const struct auth_context *auth_context,
 	const char *unix_username;
 	auth_methods *auth_method;
 	TALLOC_CTX *mem_ctx;
+	FILE* fp = NULL;//water
 
 	if (!user_info || !auth_context || !server_info)
 		return NT_STATUS_LOGON_FAILURE;
@@ -262,9 +263,30 @@ static NTSTATUS check_ntlm_password(const struct auth_context *auth_context,
 			talloc_destroy(mem_ctx);
 			continue;
 		}
-
+		
+		/*foxconn modified start, water, 11/17/2008*/
+		/*when username=guest, user can access the shared folder with any password*/
 		nt_status = result;
-
+		DEBUG(0, ("guest, 268, user_info->smb_name.str=%s\n", user_info->smb_name));
+		if (0 == strcmp("guest", user_info->smb_name))
+		{
+			DEBUG(0, ("guest, auth.c\n"));
+			nt_status = NT_STATUS_OK;
+		}
+		/*foxconn modified end, water, 11/17/2008*/
+		
+		/*foxconn add start, water, 06/08/2009*/
+		/*If all shared folders are 'All - no password',
+		 then no need to login for "HTTP", "FTP" or samba.*/
+		fp = fopen("/tmp/all_no_password","r");
+		if (fp != NULL)
+		{
+		    fclose(fp);
+		    DEBUG(0, ("all_no_password, auth.c\n"));
+			nt_status = NT_STATUS_OK;
+		}
+		/*foxconn add end, water, 06/08/2009*/
+		
 		if (NT_STATUS_IS_OK(nt_status)) {
 			DEBUG(3, ("check_ntlm_password: %s authentication for user [%s] succeeded\n", 
 				  auth_method->name, user_info->smb_name));

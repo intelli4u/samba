@@ -32,9 +32,10 @@
 
 
 #if defined(LARGE_SMB_OFF_T)
-#define BUFFER_SIZE (128*1024)
+#define BUFFER_SIZE (256*1024)
 #else /* no large readwrite possible */
-#define BUFFER_SIZE (0xFFFF)
+#define BUFFER_SIZE (256*1024) /* wklin modified, 11/19/2009  */
+/* #define BUFFER_SIZE (0xFFFF) */
 #endif
 
 #define SAFETY_MARGIN 1024
@@ -132,6 +133,52 @@
 /* The above can be OR'ed with... */
 #define OPENX_FILE_CREATE_IF_NOT_EXIST 0x10
 #define OPENX_FILE_FAIL_IF_NOT_EXIST 0
+/* Foxconn, added by MJ., 2010.03.25, for making a shared memory. */
+#ifdef MAX_USB_ACCESS
+
+#ifndef LINUX26
+#include <linux/spinlock.h>
+#endif
+#include <sys/shm.h>
+#include <sys/stat.h>
+#define MAX_CON_NUM 15
+typedef struct
+{
+    int sem_id;
+    int num;
+    int ftp_num;
+    int wan_ftp_num;
+}CON_STATISTIC;
+
+//int segment_id;
+/* Foxconn, ended by MJ., 2010.03.25, */
+
+/* Foxconn, added by MJ., 2010.03.25, for making a Semaphore. */
+
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+/* We must define union semun ourselves for using Semaphore. */
+union semun {
+    int val;
+    struct semid_ds *buf;
+    unsigned short int *array;
+    struct seminfo *__buf;
+};
+
+int binary_semaphore_allocation (key_t key, int sem_flags);
+int binary_semaphore_deallocate (int semid);
+int binary_semaphore_initialize (int semid);
+int binary_semaphore_wait (int semid);
+int binary_semaphore_post (int semid);
+
+
+#endif // End of MAX_USB_ACCESS
+/* Foxconn, ended by MJ., 2010.03.25, */
+
+
 
 #include "doserr.h"
 

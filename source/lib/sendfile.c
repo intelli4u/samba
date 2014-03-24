@@ -34,7 +34,23 @@
 #define MSG_MORE 0x8000
 #endif
 
+#include <errno.h>
+#include <string.h>
+#define cprintf(fmt, args...) do { \
+	FILE *fp = fopen("/dev/console", "w"); \
+	if (fp) { \
+		fprintf(fp, fmt , ## args); \
+		fclose(fp); \
+	} \
+} while (0)
+
+
+extern ssize_t sendfile64 (int __out_fd, int __in_fd, __off64_t *__offset, size_t __count);
+
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
 ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	size_t total=0;
 	ssize_t ret;
@@ -50,7 +66,10 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T of
 		while (total < hdr_len) {
 			ret = sys_send(tofd, header->data + total,hdr_len - total, MSG_MORE);
 			if (ret == -1)
+			{
+			    cprintf("%s(%d) hdr_len=%d , total=%d\n", __FUNCTION__, __LINE__, hdr_len, total); //debug
 				return -1;
+			}
 			total += ret;
 		}
 	}
@@ -76,13 +95,19 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T of
 				 * layer violation. JRA.
 				 */
 				errno = EINTR; /* Normally we can never return this. */
+			    cprintf("%s(%d) offset=%d, total=%d \n", __FUNCTION__, __LINE__, offset, total); //debug
 			}
+			cprintf("%s(%d) err=%s, count=(%d) offset=(%d) total=%d\n", __FUNCTION__, __LINE__, strerror(errno), count, offset, total); //debug
 			return -1;
 		}
 		if (nwritten == 0)
+		{
+		    cprintf("%s(%d) offset=%d, total=%d \n", __FUNCTION__, __LINE__, offset, total); //debug
 			return -1; /* I think we're at EOF here... */
+		}
 		total -= nwritten;
 	}
+	//cprintf("%s(%d) %d\n", __FUNCTION__, __LINE__, count + hdr_len); //debug
 	return count + hdr_len;
 }
 
@@ -100,7 +125,10 @@ extern int32 sendfile (int out_fd, int in_fd, int32 *offset, uint32 count);
 #define MSG_MORE 0x8000
 #endif
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
 ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	size_t total=0;
 	ssize_t ret;
@@ -173,7 +201,10 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T of
 
 #include <sys/sendfile.h>
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
 ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	int sfvcnt;
 	size_t total, xferred;
@@ -259,7 +290,10 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T of
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
 ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	size_t total=0;
 	struct iovec hdtrl[2];
@@ -330,7 +364,10 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T of
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
 ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	size_t total=0;
 	struct sf_hdtr hdr;
@@ -402,8 +439,12 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T of
 /* Contributed by William Jojo <jojowil@hvcc.edu> */
 #include <sys/socket.h>
 
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
 ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
+/*Foxconn modify end by Hank 09/13/2013*/
 {
+	size_t total=0;
 	struct sf_parms hdtrl;
 
 	/* Set up the header/trailer struct params. */
@@ -451,8 +492,10 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T of
 /* END AIX SEND_FILE */
 
 #else /* No sendfile implementation. Return error. */
-
+/*Foxconn modify start by Hank 09/13/2013*/
+/*remove old function in 3.0.13 which cause md5 is wrong when access more than 4G file*/
 ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
+/*Foxconn modify end by Hank 09/13/2013*/
 {
 	/* No sendfile syscall. */
 	errno = ENOSYS;

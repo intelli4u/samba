@@ -45,6 +45,7 @@ static NTSTATUS fd_open(struct connection_struct *conn,
 		    mode_t mode)
 {
 	NTSTATUS status = NT_STATUS_OK;
+	int accmode = (flags & O_ACCMODE);
 
 #ifdef O_NOFOLLOW
 	/* 
@@ -66,6 +67,66 @@ static NTSTATUS fd_open(struct connection_struct *conn,
 		    fname, flags, (int)mode, fsp->fh->fd,
 		(fsp->fh->fd == -1) ? strerror(errno) : "" ));
 
+#if 1
+        /* Foxconn, added by MJ., 2010.04.09, for locking files against access of other programs. */
+        int ret;
+        struct flock my_lock;
+        my_lock.l_type = F_RDLCK;
+        my_lock.l_whence = SEEK_SET; /* modified for failure of locking */
+        my_lock.l_start = 0;
+        my_lock.l_len = 0;
+
+        if(accmode == O_RDONLY)
+        {
+            DEBUG(10, ("read only: %d\n", fsp->fh->fd));
+            /* Foxconn modified start pling 08/26/2010 */
+            /* WNR3500L TD#159: Don't do fcntl if fd is not valid */
+            //if(!fcntl(fd, F_GETLK, &my_lock) && fd != -1)
+            if(fsp->fh->fd >= 0 && !fcntl(fsp->fh->fd, F_GETLK, &my_lock))
+            /* Foxconn modified end pling 08/26/2010 */
+            {
+                DEBUG(10, ("my_lock: %d\n", my_lock.l_type));
+                if(my_lock.l_type != F_UNLCK){
+                    DEBUG(10, ("This file is locked, %d\n", fsp->fh->fd));
+                }else{
+                    DEBUG(10, ("This file unlocked, %d\n", fsp->fh->fd));
+                    my_lock.l_type = F_RDLCK;
+                    if(fcntl(fsp->fh->fd, F_SETLK, &my_lock))
+                    {
+                        DEBUG(10, ("Set RDLCK failed.\n"));
+                    }
+                    else
+                        DEBUG(10, ("Set RDLCK ok.\n"));
+                }
+            }
+        }
+        else
+        {
+            DEBUG(10, ("write mode: %d\n", fsp->fh->fd));
+            my_lock.l_type = F_WRLCK;
+            if(fsp->fh->fd >= 0)
+            {
+                ret = fcntl(fsp->fh->fd, F_GETLK, &my_lock);
+                if(my_lock.l_type == 2)
+                {
+                    DEBUG(10, ("This file unlocked, %d\n", fsp->fh->fd));
+                    my_lock.l_type = F_WRLCK;
+                    if(fcntl(fsp->fh->fd, F_SETLK, &my_lock))
+                        DEBUG(10, ("Set WRLCK fauled.\n"));
+                    else
+                        DEBUG(10, ("Set WRLCK ok.\n"));
+
+                }else{
+                    DEBUG(10, ("This file locked, %d\n", fsp->fh->fd));
+                    close(fsp->fh->fd); //close fd.
+                    fsp->fh->fd = -1;
+                }
+            }else{
+                DEBUG(10, ("no file exists, %d\n", fsp->fh->fd));
+            }
+        }
+        /* Foxconn, ended by MJ., 2010.04.09 */
+#endif
 	return status;
 }
 
