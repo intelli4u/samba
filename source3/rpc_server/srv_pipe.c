@@ -774,6 +774,11 @@ static NTSTATUS pipe_auth_verify_final(struct pipes_struct *p)
 	void *mech_ctx;
 	NTSTATUS status;
 
+	if (p->auth.auth_type == DCERPC_AUTH_TYPE_NONE) {
+		p->pipe_bound = true;
+		return NT_STATUS_OK;
+	}
+
 	switch (p->auth.auth_type) {
 	case DCERPC_AUTH_TYPE_NTLMSSP:
 		ntlmssp_ctx = talloc_get_type_abort(p->auth.auth_ctx,
