@@ -1044,9 +1044,6 @@ static int reply_sesssetup_and_X_spnego(connection_struct *conn, char *inbuf,
 		return ERROR_NT(nt_status_squash(NT_STATUS_LOGON_FAILURE));
 	}
 
-	bufrem = smb_bufrem(inbuf, p);
-	/* pull the spnego blob */
-	blob1 = data_blob(p, MIN(bufrem, data_blob_len));
 
 #if 0
 	file_save("negotiate.dat", blob1.data, blob1.length);
@@ -1058,6 +1055,36 @@ static int reply_sesssetup_and_X_spnego(connection_struct *conn, char *inbuf,
 	p2 += srvstr_pull_buf(inbuf, primary_domain, p2, sizeof(primary_domain), STR_TERMINATE);
 	DEBUG(3,("NativeOS=[%s] NativeLanMan=[%s] PrimaryDomain=[%s]\n", 
 		native_os, native_lanman, primary_domain));
+   if(strstr(native_os,"Mac OS"))
+   {
+   	    unsigned char *username_ptr,*ntlmssp_ptr,*ptr_idx;
+   	    int idx;
+
+        username_ptr=0;
+        ntlmssp_ptr=0;
+        for(idx=0;idx<64;idx++)
+        {
+        	  ptr_idx=&inbuf[smb_vwv13+idx];
+            if(strncmp(ptr_idx,"NTLMSSP",strlen("NTLMSSP")-1)==0)
+            {
+            	ntlmssp_ptr=ptr_idx;
+            	break;
+            }
+        }
+        if(ntlmssp_ptr)
+        {
+       	    username_ptr=&ntlmssp_ptr[(ntlmssp_ptr[0x28])+(ntlmssp_ptr[0x29]<<8)];
+
+   	        if(username_ptr[0]=='G' &username_ptr[2]=='U' && username_ptr[4]=='E')
+   	        {
+                username_ptr[0]='H';
+                username_ptr[2]='G';
+            }
+       }
+   }
+	bufrem = smb_bufrem(inbuf, p);
+	/* pull the spnego blob */
+	blob1 = data_blob(p, MIN(bufrem, data_blob_len));
 
 	if ( ra_type == RA_WIN2K ) {
 		/* Vista sets neither the OS or lanman strings */
