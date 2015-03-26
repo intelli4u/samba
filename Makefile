@@ -72,8 +72,6 @@ install: all
 	install -m 755 $(SAMBA_SRC)/bin/smb_pass  $(TARGETDIR)/usr/local/samba/
 	install -m 755 $(SAMBA_SRC)/bin/nmbd  $(TARGETDIR)/usr/local/samba/
 	install -m 755 $(SAMBA_SRC)/bin/smbd  $(TARGETDIR)/usr/local/samba/
-	install -d $(TARGETDIR)/usr
-	install -d $(TARGETDIR)/usr/lib
 	install -m 755 $(SAMBA_SRC)/bin/libbigballofmud.so $(TARGETDIR)/usr/lib/libbigballofmud.so.0
 	$(STRIP) $(TARGETDIR)/usr/local/samba/smbd
 	$(STRIP) $(TARGETDIR)/usr/local/samba/nmbd
