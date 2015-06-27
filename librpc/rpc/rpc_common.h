@@ -158,9 +158,9 @@ uint8_t dcerpc_get_endian_flag(DATA_BLOB *blob);
 *
 * @return		- A NTSTATUS error code.
 */
-NTSTATUS dcerpc_pull_auth_trailer(struct ncacn_packet *pkt,
+NTSTATUS dcerpc_pull_auth_trailer(const struct ncacn_packet *pkt,
 				  TALLOC_CTX *mem_ctx,
-				  DATA_BLOB *pkt_trailer,
+				  const DATA_BLOB *pkt_trailer,
 				  struct dcerpc_auth *auth,
 				  uint32_t *auth_length,
 				  bool auth_data_only);
