@@ -1829,9 +1829,8 @@ static bool check_bind_response(const struct dcerpc_bind_ack *r,
 
 static NTSTATUS create_rpc_bind_auth3(TALLOC_CTX *mem_ctx,
 				struct rpc_pipe_client *cli,
+				struct pipe_auth_data *auth,
 				uint32_t rpc_call_id,
-				enum dcerpc_AuthType auth_type,
-				enum dcerpc_AuthLevel auth_level,
 				DATA_BLOB *pauth_blob,
 				DATA_BLOB *rpc_out)
 {
@@ -1841,8 +1840,8 @@ static NTSTATUS create_rpc_bind_auth3(TALLOC_CTX *mem_ctx,
 	u.auth3._pad = 0;
 
 	status = dcerpc_push_dcerpc_auth(mem_ctx,
-					 auth_type,
-					 auth_level,
+					 auth->auth_type,
+					 auth->auth_level,
 					 0, /* auth_pad_length */
 					 1, /* auth_context_id */
 					 pauth_blob,
@@ -1874,8 +1873,7 @@ static NTSTATUS create_rpc_bind_auth3(TALLOC_CTX *mem_ctx,
  ********************************************************************/
 
 static NTSTATUS create_rpc_alter_context(TALLOC_CTX *mem_ctx,
-					enum dcerpc_AuthType auth_type,
-					enum dcerpc_AuthLevel auth_level,
+					struct pipe_auth_data *auth,
 					uint32_t rpc_call_id,
 					const struct ndr_syntax_id *abstract,
 					const struct ndr_syntax_id *transfer,
@@ -1886,8 +1884,8 @@ static NTSTATUS create_rpc_alter_context(TALLOC_CTX *mem_ctx,
 	NTSTATUS status;
 
 	status = dcerpc_push_dcerpc_auth(mem_ctx,
-					 auth_type,
-					 auth_level,
+					 auth->auth_type,
+					 auth->auth_level,
 					 0, /* auth_pad_length */
 					 1, /* auth_context_id */
 					 pauth_blob,
@@ -2173,9 +2171,7 @@ static NTSTATUS rpc_bind_next_send(struct tevent_req *req,
 	/* Now prepare the alter context pdu. */
 	data_blob_free(&state->rpc_out);
 
-	status = create_rpc_alter_context(state,
-					  auth->auth_type,
-					  auth->auth_level,
+	status = create_rpc_alter_context(state, auth,
 					  state->rpc_call_id,
 					  &state->cli->abstract_syntax,
 					  &state->cli->transfer_syntax,
@@ -2208,10 +2204,8 @@ static NTSTATUS rpc_bind_finish_send(struct tevent_req *req,
 	/* Now prepare the auth3 context pdu. */
 	data_blob_free(&state->rpc_out);
 
-	status = create_rpc_bind_auth3(state, state->cli,
+	status = create_rpc_bind_auth3(state, state->cli, auth,
 					state->rpc_call_id,
-					auth->auth_type,
-					auth->auth_level,
 					auth_token,
 					&state->rpc_out);
 	if (!NT_STATUS_IS_OK(status)) {
