@@ -1929,6 +1929,28 @@ static bool process_request_pdu(struct pipes_struct *p, struct ncacn_packet *pkt
 		return False;
 	}
 
+	/*
+	 * We don't ignore DCERPC_PFC_FLAG_PENDING_CANCEL.
+	 * TODO: we can reject it with DCERPC_FAULT_NO_CALL_ACTIVE later.
+	 */
+	status = dcerpc_verify_ncacn_packet_header(pkt,
+			DCERPC_PKT_REQUEST,
+			pkt->u.request.stub_and_verifier.length,
+			0, /* required_flags */
+			DCERPC_PFC_FLAG_FIRST |
+			DCERPC_PFC_FLAG_LAST |
+			0x08 | /* this is not defined, but should be ignored */
+			DCERPC_PFC_FLAG_CONC_MPX |
+			DCERPC_PFC_FLAG_DID_NOT_EXECUTE |
+			DCERPC_PFC_FLAG_MAYBE |
+			DCERPC_PFC_FLAG_OBJECT_UUID);
+	if (!NT_STATUS_IS_OK(status)) {
+		DEBUG(1, ("process_request_pdu: invalid pdu: %s\n",
+			  nt_errstr(status)));
+		set_incoming_fault(p);
+		return false;
+	}
+
 	/* Store the opnum */
 	p->opnum = pkt->u.request.opnum;
 
