@@ -568,6 +568,7 @@ static bool pipe_schannel_auth_bind(struct pipes_struct *p,
 	/* We're finished with this bind - no more packets. */
 	p->auth.auth_ctx = schannel_auth;
 	p->auth.auth_type = DCERPC_AUTH_TYPE_SCHANNEL;
+	p->auth.auth_context_id = auth_info->auth_context_id;
 
 	p->pipe_bound = True;
 
@@ -612,6 +613,7 @@ static bool pipe_ntlmssp_auth_bind(struct pipes_struct *p,
 
 	p->auth.auth_ctx = ntlmssp_state;
 	p->auth.auth_type = DCERPC_AUTH_TYPE_NTLMSSP;
+	p->auth.auth_context_id = auth_info->auth_context_id;
 
 	DEBUG(10, (__location__ ": NTLMSSP auth started\n"));
 
