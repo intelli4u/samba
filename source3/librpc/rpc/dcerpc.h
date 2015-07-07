@@ -42,6 +42,7 @@ struct pipe_auth_data {
 	bool verified_bitmask1;
 
 	void *auth_ctx;
+	uint32_t auth_context_id;
 
 	/* Only the client code uses these 3 for now */
 	char *domain;

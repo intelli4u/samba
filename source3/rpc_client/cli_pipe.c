@@ -1324,7 +1324,7 @@ static NTSTATUS create_rpc_bind_req(TALLOC_CTX *mem_ctx,
 						auth->auth_type,
 						auth->auth_level,
 						0, /* auth_pad_length */
-						1, /* auth_context_id */
+						auth->auth_context_id,
 						&auth_token,
 						&auth_info);
 		if (!NT_STATUS_IS_OK(ret)) {
@@ -1843,7 +1843,7 @@ static NTSTATUS create_rpc_bind_auth3(TALLOC_CTX *mem_ctx,
 					 auth->auth_type,
 					 auth->auth_level,
 					 0, /* auth_pad_length */
-					 1, /* auth_context_id */
+					 auth->auth_context_id,
 					 pauth_blob,
 					 &u.auth3.auth_info);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -1887,7 +1887,7 @@ static NTSTATUS create_rpc_alter_context(TALLOC_CTX *mem_ctx,
 					 auth->auth_type,
 					 auth->auth_level,
 					 0, /* auth_pad_length */
-					 1, /* auth_context_id */
+					 auth->auth_context_id,
 					 pauth_blob,
 					 &auth_info);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -2577,6 +2577,7 @@ NTSTATUS rpccli_ncalrpc_bind_data(TALLOC_CTX *mem_ctx,
 
 	result->auth_type = DCERPC_AUTH_TYPE_NCALRPC_AS_SYSTEM;
 	result->auth_level = DCERPC_AUTH_LEVEL_CONNECT;
+	result->auth_context_id = 1;
 
 	result->user_name = talloc_strdup(result, "");
 	result->domain = talloc_strdup(result, "");
@@ -2601,6 +2602,7 @@ NTSTATUS rpccli_anon_bind_data(TALLOC_CTX *mem_ctx,
 
 	result->auth_type = DCERPC_AUTH_TYPE_NONE;
 	result->auth_level = DCERPC_AUTH_LEVEL_NONE;
+	result->auth_context_id = 0;
 
 	result->user_name = talloc_strdup(result, "");
 	result->domain = talloc_strdup(result, "");
@@ -2638,6 +2640,7 @@ static NTSTATUS rpccli_ntlmssp_bind_data(TALLOC_CTX *mem_ctx,
 
 	result->auth_type = auth_type;
 	result->auth_level = auth_level;
+	result->auth_context_id = 1;
 
 	result->user_name = talloc_strdup(result, username);
 	result->domain = talloc_strdup(result, domain);
@@ -2709,6 +2712,7 @@ NTSTATUS rpccli_schannel_bind_data(TALLOC_CTX *mem_ctx, const char *domain,
 
 	result->auth_type = DCERPC_AUTH_TYPE_SCHANNEL;
 	result->auth_level = auth_level;
+	result->auth_context_id = 1;
 
 	result->user_name = talloc_strdup(result, "");
 	result->domain = talloc_strdup(result, domain);
@@ -3373,6 +3377,7 @@ NTSTATUS cli_rpc_pipe_open_krb5(struct cli_state *cli,
 	}
 	auth->auth_type = DCERPC_AUTH_TYPE_KRB5;
 	auth->auth_level = auth_level;
+	auth->auth_context_id = 1;
 
 	if (!username) {
 		username = "";
@@ -3443,6 +3448,7 @@ NTSTATUS cli_rpc_pipe_open_spnego_krb5(struct cli_state *cli,
 	}
 	auth->auth_type = DCERPC_AUTH_TYPE_SPNEGO;
 	auth->auth_level = auth_level;
+	auth->auth_context_id = 1;
 
 	if (!username) {
 		username = "";
@@ -3517,6 +3523,7 @@ NTSTATUS cli_rpc_pipe_open_spnego_ntlmssp(struct cli_state *cli,
 	}
 	auth->auth_type = DCERPC_AUTH_TYPE_SPNEGO;
 	auth->auth_level = auth_level;
+	auth->auth_context_id = 1;
 
 	if (!username) {
 		username = "";
