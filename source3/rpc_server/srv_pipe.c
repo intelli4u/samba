@@ -457,6 +457,7 @@ static bool pipe_spnego_auth_bind(struct pipes_struct *p,
 
 	p->auth.auth_ctx = spnego_ctx;
 	p->auth.auth_type = DCERPC_AUTH_TYPE_SPNEGO;
+	p->auth.auth_context_id = auth_info->auth_context_id;
 
 	DEBUG(10, ("SPNEGO auth started\n"));
 
@@ -1097,6 +1098,7 @@ static bool api_pipe_bind_req(struct pipes_struct *p,
 		p->pipe_bound = True;
 		/* The session key was initialized from the SMB
 		 * session in make_internal_rpc_pipe_p */
+		p->auth.auth_context_id = 0;
 	}
 
 	ZERO_STRUCT(u.bind_ack);
@@ -1141,12 +1143,11 @@ static bool api_pipe_bind_req(struct pipes_struct *p,
 	}
 
 	if (auth_resp.length) {
-
 		status = dcerpc_push_dcerpc_auth(pkt,
 						 auth_type,
 						 auth_info.auth_level,
-						 0,
-						 1, /* auth_context_id */
+						 0, /* pad_len */
+						 p->auth.auth_context_id,
 						 &auth_resp,
 						 &auth_blob);
 		if (!NT_STATUS_IS_OK(status)) {
@@ -1582,7 +1583,7 @@ static bool api_pipe_alter_context(struct pipes_struct *p,
 						 auth_info.auth_type,
 						 auth_info.auth_level,
 						 pad_len,
-						 1, /* auth_context_id */
+						 p->auth.auth_context_id,
 						 &auth_resp,
 						 &auth_blob);
 		if (!NT_STATUS_IS_OK(status)) {
