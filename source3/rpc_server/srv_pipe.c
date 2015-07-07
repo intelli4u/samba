@@ -910,7 +910,12 @@ static bool api_pipe_bind_req(struct pipes_struct *p,
 	}
 
 	if (pkt->u.bind.num_contexts == 0) {
-		DEBUG(0, ("api_pipe_bind_req: no rpc contexts around\n"));
+		DEBUG(1, ("api_pipe_bind_req: no rpc contexts around\n"));
+		goto err_exit;
+	}
+
+	if (pkt->u.bind.ctx_list[0].num_transfer_syntaxes == 0) {
+		DEBUG(1, ("api_pipe_bind_req: no transfer syntaxes around\n"));
 		goto err_exit;
 	}
 
