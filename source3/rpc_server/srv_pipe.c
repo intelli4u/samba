@@ -877,6 +877,25 @@ static bool api_pipe_bind_req(struct pipes_struct *p,
 			 get_pipe_name_from_syntax(talloc_tos(), &p->syntax)));
 		return setup_bind_nak(p, pkt);
 	}
+	p->allow_bind = false;
+
+	status = dcerpc_verify_ncacn_packet_header(pkt,
+			DCERPC_PKT_BIND,
+			pkt->u.bind.auth_info.length,
+			0, /* required flags */
+			DCERPC_PFC_FLAG_FIRST |
+			DCERPC_PFC_FLAG_LAST |
+			DCERPC_PFC_FLAG_SUPPORT_HEADER_SIGN |
+			0x08 | /* this is not defined, but should be ignored */
+			DCERPC_PFC_FLAG_CONC_MPX |
+			DCERPC_PFC_FLAG_DID_NOT_EXECUTE |
+			DCERPC_PFC_FLAG_MAYBE |
+			DCERPC_PFC_FLAG_OBJECT_UUID);
+	if (!NT_STATUS_IS_OK(status)) {
+		DEBUG(1, ("api_pipe_bind_req: invalid pdu: %s\n",
+			  nt_errstr(status)));
+		goto err_exit;
+	}
 
 	if (pkt->u.bind.num_contexts == 0) {
 		DEBUG(0, ("api_pipe_bind_req: no rpc contexts around\n"));
@@ -1155,6 +1174,22 @@ static bool api_pipe_bind_req(struct pipes_struct *p,
 	p->out_data.current_pdu_sent = 0;
 
 	TALLOC_FREE(auth_blob.data);
+
+	if (bind_ack_ctx.result == 0) {
+		p->allow_alter = true;
+		p->allow_auth3 = true;
+		if (p->auth.auth_type == DCERPC_AUTH_TYPE_NONE) {
+			status = pipe_auth_verify_final(p);
+			if (!NT_STATUS_IS_OK(status)) {
+				DEBUG(0, ("pipe_auth_verify_final failed: %s\n",
+					  nt_errstr(status)));
+				goto err_exit;
+			}
+		}
+	} else {
+		goto err_exit;
+	}
+
 	return True;
 
   err_exit:
@@ -1179,8 +1214,33 @@ bool api_pipe_bind_auth3(struct pipes_struct *p, struct ncacn_packet *pkt)
 
 	DEBUG(5, ("api_pipe_bind_auth3: decode request. %d\n", __LINE__));
 
-	if (pkt->auth_length == 0) {
-		DEBUG(0, ("No auth field sent for bind request!\n"));
+	if (!p->allow_auth3) {
+		DEBUG(1, ("Pipe not in allow auth3 state.\n"));
+		goto err;
+	}
+
+	status = dcerpc_verify_ncacn_packet_header(pkt,
+			DCERPC_PKT_AUTH3,
+			pkt->u.auth3.auth_info.length,
+			0, /* required flags */
+			DCERPC_PFC_FLAG_FIRST |
+			DCERPC_PFC_FLAG_LAST |
+			DCERPC_PFC_FLAG_SUPPORT_HEADER_SIGN |
+			0x08 | /* this is not defined, but should be ignored */
+			DCERPC_PFC_FLAG_CONC_MPX |
+			DCERPC_PFC_FLAG_DID_NOT_EXECUTE |
+			DCERPC_PFC_FLAG_MAYBE |
+			DCERPC_PFC_FLAG_OBJECT_UUID);
+	if (!NT_STATUS_IS_OK(status)) {
+		DEBUG(1, ("api_pipe_bind_auth3: invalid pdu: %s\n",
+			  nt_errstr(status)));
+		goto err;
+	}
+
+	/* We can only finish if the pipe is unbound for now */
+	if (p->pipe_bound) {
+		DEBUG(0, (__location__ ": Pipe already bound, "
+			  "AUTH3 not supported!\n"));
 		goto err;
 	}
 
@@ -1297,8 +1357,41 @@ static bool api_pipe_alter_context(struct pipes_struct *p,
 
 	DEBUG(5,("api_pipe_alter_context: make response. %d\n", __LINE__));
 
-	if (pkt->u.bind.assoc_group_id != 0) {
-		assoc_gid = pkt->u.bind.assoc_group_id;
+	if (!p->allow_alter) {
+		DEBUG(1, ("Pipe not in allow alter state.\n"));
+		goto err_exit;
+	}
+
+	status = dcerpc_verify_ncacn_packet_header(pkt,
+			DCERPC_PKT_ALTER,
+			pkt->u.alter.auth_info.length,
+			0, /* required flags */
+			DCERPC_PFC_FLAG_FIRST |
+			DCERPC_PFC_FLAG_LAST |
+			DCERPC_PFC_FLAG_SUPPORT_HEADER_SIGN |
+			0x08 | /* this is not defined, but should be ignored */
+			DCERPC_PFC_FLAG_CONC_MPX |
+			DCERPC_PFC_FLAG_DID_NOT_EXECUTE |
+			DCERPC_PFC_FLAG_MAYBE |
+			DCERPC_PFC_FLAG_OBJECT_UUID);
+	if (!NT_STATUS_IS_OK(status)) {
+		DEBUG(1, ("api_pipe_alter_context: invalid pdu: %s\n",
+			  nt_errstr(status)));
+		goto err_exit;
+	}
+
+	if (pkt->u.alter.num_contexts == 0) {
+		DEBUG(1, ("api_pipe_alter_context: no rpc contexts around\n"));
+		goto err_exit;
+	}
+
+	if (pkt->u.alter.ctx_list[0].num_transfer_syntaxes == 0) {
+		DEBUG(1, ("api_pipe_alter_context: no transfer syntaxes around\n"));
+		goto err_exit;
+	}
+
+	if (pkt->u.alter.assoc_group_id != 0) {
+		assoc_gid = pkt->u.alter.assoc_group_id;
 	} else {
 		assoc_gid = 0x53f0;
 	}
