@@ -42,6 +42,11 @@
 #include "auth.h"
 #include "ntdomain.h"
 #include "rpc_server/srv_pipe.h"
+#include "../librpc/gen_ndr/ndr_dcerpc.h"
+#include "../librpc/ndr/ndr_dcerpc.h"
+#include "../librpc/gen_ndr/ndr_samr.h"
+#include "../librpc/gen_ndr/ndr_lsa.h"
+#include "../librpc/gen_ndr/ndr_netlogon.h"
 
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_RPC_SRV
@@ -370,6 +375,35 @@ static bool check_bind_req(struct pipes_struct *p,
 	context_fns->n_cmds = rpc_srv_get_pipe_num_cmds(abstract);
 	context_fns->cmds = rpc_srv_get_pipe_cmds(abstract);
 	context_fns->context_id = context_id;
+	context_fns->syntax = *abstract;
+
+	context_fns->allow_connect = lp_allow_dcerpc_auth_level_connect();
+	/*
+	 * for the samr, lsarpc and netlogon interfaces we don't allow "connect"
+	 * auth_level by default.
+	 */
+	ok = ndr_syntax_id_equal(abstract, &ndr_table_samr.syntax_id);
+	if (ok) {
+		context_fns->allow_connect = false;
+	}
+	ok = ndr_syntax_id_equal(abstract, &ndr_table_lsarpc.syntax_id);
+	if (ok) {
+		context_fns->allow_connect = false;
+	}
+	ok = ndr_syntax_id_equal(abstract, &ndr_table_netlogon.syntax_id);
+	if (ok) {
+		context_fns->allow_connect = false;
+	}
+	/*
+	 * every interface can be modified to allow "connect" auth_level by
+	 * using a parametric option like:
+	 * allow dcerpc auth level connect:<interface>
+	 * e.g.
+	 * allow dcerpc auth level connect:samr = yes
+	 */
+	context_fns->allow_connect = lp_parm_bool(-1,
+		"allow dcerpc auth level connect",
+		interface_name, context_fns->allow_connect);
 
 	/* add to the list of open contexts */
 
