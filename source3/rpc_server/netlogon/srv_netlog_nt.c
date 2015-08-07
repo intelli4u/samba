@@ -1636,6 +1636,14 @@ static NTSTATUS _netr_LogonSamLogon_base(struct pipes_struct *p,
 						r->out.validation->sam3);
 		break;
 	case 6:
+		/* Only allow this if the pipe is protected. */
+		if (p->auth.auth_level < DCERPC_AUTH_LEVEL_PRIVACY) {
+			DEBUG(0,("netr_Validation6: client %s not using privacy for netlogon\n",
+				get_remote_machine_name()));
+			status = NT_STATUS_INVALID_PARAMETER;
+			break;
+		}
+
 		status = serverinfo_to_SamInfo6(server_info, pipe_session_key, 16,
 						r->out.validation->sam6);
 		break;
