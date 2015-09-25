@@ -2279,11 +2279,13 @@ NTSTATUS _netr_GetForestTrustInformation(struct pipes_struct *p,
 
 	/* TODO: check server name */
 
-	status = schannel_check_creds_state(p->mem_ctx, lp_private_dir(),
-					    r->in.computer_name,
-					    r->in.credential,
-					    r->out.return_authenticator,
-					    &creds);
+	become_root();
+	status = netr_creds_server_step_check(p, p->mem_ctx,
+					      r->in.computer_name,
+					      r->in.credential,
+					      r->out.return_authenticator,
+					      &creds);
+	unbecome_root();
 	if (!NT_STATUS_IS_OK(status)) {
 		return status;
 	}
@@ -2379,11 +2381,13 @@ NTSTATUS _netr_ServerGetTrustInfo(struct pipes_struct *p,
 
 	/* TODO: check server name */
 
-	status = schannel_check_creds_state(p->mem_ctx, lp_private_dir(),
-					    r->in.computer_name,
-					    r->in.credential,
-					    r->out.return_authenticator,
-					    &creds);
+	become_root();
+	status = netr_creds_server_step_check(p, p->mem_ctx,
+					      r->in.computer_name,
+					      r->in.credential,
+					      r->out.return_authenticator,
+					      &creds);
+	unbecome_root();
 	if (!NT_STATUS_IS_OK(status)) {
 		return status;
 	}
