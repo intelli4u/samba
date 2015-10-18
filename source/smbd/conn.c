@@ -21,59 +21,6 @@
 
 #include "includes.h"
 
-#ifdef MAX_USB_ACCESS
-/* Obtain a binary semaphore¡¦s ID, allocating if necessary. */
-int binary_semaphore_allocation (key_t key, int sem_flags)
-{
-    return semget (key, 1, sem_flags);
-}
-/* Deallocate a binary semaphore. All users must have finished their
-use. Returns -1 on failure. */
-int binary_semaphore_deallocate (int semid)
-{
-    union semun ignored_argument;
-    return semctl (semid, 1, IPC_RMID, ignored_argument);
-}
-
-/* Initialize a binary semaphore with a value of 1. */
-int binary_semaphore_initialize (int semid)
-{
-    union semun argument;
-    unsigned short values[1];
-    values[0] = 1;
-    argument.array = values;
-    return semctl (semid, 0, SETALL, argument);
-}
-/* Wait on a binary semaphore. Block until the semaphore value is positive, then
-decrement it by 1. */
-int binary_semaphore_wait (int semid)
-{
-    struct sembuf operations[1];
-    /* Use the first (and only) semaphore. */
-    operations[0].sem_num = 0;
-    /* Decrement by 1. */
-    operations[0].sem_op = -1;
-    /* Permit undo¡¦ing. */
-    operations[0].sem_flg = SEM_UNDO;
-    return semop (semid, operations, 1);
-}
-
-/* Post to a binary semaphore: increment its value by 1.
-This returns immediately. */
-int binary_semaphore_post (int semid)
-{
-    struct sembuf operations[1];
-    /* Use the first (and only) semaphore. */
-    operations[0].sem_num = 0;
-    /* Increment by 1. */
-    operations[0].sem_op = 1;
-    /* Permit undo¡¦ing. */
-    operations[0].sem_flg = SEM_UNDO;
-    return semop (semid, operations, 1);
-}
-#endif //End of MAX_USB_ACCESS
-
-
 /* The connections bitmap is expanded in increments of BITMAP_BLOCK_SZ. The
  * maximum size of the bitmap is the largest positive integer, but you will hit
  * the "max connections" limit, looong before that.
@@ -110,7 +57,7 @@ BOOL conn_snum_used(int snum)
 {
 	connection_struct *conn;
 	for (conn=Connections;conn;conn=conn->next) {
-		if (conn->service == snum) {
+		if (conn->params->service == snum) {
 			return(True);
 		}
 	}
@@ -149,20 +96,7 @@ connection_struct *conn_new(void)
 	TALLOC_CTX *mem_ctx;
 	connection_struct *conn;
 	int i;
-    int find_offset = 1;
-#if 0
-    extern CON_STATISTIC *con_st;
-
-    if(con_st != NULL){
-        dbgtext("->total con num: %d, %s\n", con_st->num, __FUNCTION__);
-        binary_semaphore_wait (con_st->sem_id);
-        if(con_st->num >= MAX_CON_NUM){
-            binary_semaphore_post (con_st->sem_id); 
-            return NULL;
-        }
-        binary_semaphore_post (con_st->sem_id);
-    }
-#endif
+        int find_offset = 1;
 
 find_again:
 	i = bitmap_find(bmap, find_offset);
@@ -173,7 +107,7 @@ find_again:
                 int             newsz = bmap->n + BITMAP_BLOCK_SZ;
                 struct bitmap * nbmap;
 
-                if (newsz <= 0) {
+                if (newsz <= oldsz) {
                         /* Integer wrap. */
 		        DEBUG(0,("ERROR! Out of connection structures\n"));
                         return NULL;
@@ -183,6 +117,10 @@ find_again:
                         oldsz, newsz));
 
                 nbmap = bitmap_allocate(newsz);
+		if (!nbmap) {
+			DEBUG(0,("ERROR! malloc fail.\n"));
+			return NULL;
+		}
 
                 bitmap_copy(nbmap, bmap);
                 bitmap_free(bmap);
@@ -193,15 +131,25 @@ find_again:
                 goto find_again;
 	}
 
-	if ((mem_ctx=talloc_init("connection_struct"))==NULL) {
-		DEBUG(0,("talloc_init(connection_struct) failed!\n"));
-
+	/* The bitmap position is used below as the connection number
+	 * conn->cnum). This ends up as the TID field in the SMB header,
+	 * which is limited to 16 bits (we skip 0xffff which is the
+	 * NULL TID).
+	 */
+	if (i > 65534) {
+		DEBUG(0, ("Maximum connection limit reached\n"));
 		return NULL;
 	}
 
-	if ((conn=TALLOC_ZERO_P(mem_ctx, connection_struct))==NULL) {
-		DEBUG(0,("talloc_zero() failed!\n"));
+	if ((mem_ctx=talloc_init("connection_struct"))==NULL) {
+		DEBUG(0,("talloc_init(connection_struct) failed!\n"));
+		return NULL;
+	}
 
+	if (!(conn=TALLOC_ZERO_P(mem_ctx, connection_struct)) ||
+	    !(conn->params = TALLOC_P(mem_ctx, struct share_params))) {
+		DEBUG(0,("TALLOC_ZERO() failed!\n"));
+		TALLOC_FREE(mem_ctx);
 		return NULL;
 	}
 	conn->mem_ctx = mem_ctx;
@@ -222,8 +170,9 @@ find_again:
 }
 
 /****************************************************************************
-close all conn structures
+ Close all conn structures.
 ****************************************************************************/
+
 void conn_close_all(void)
 {
 	connection_struct *conn, *next;
@@ -246,13 +195,21 @@ BOOL conn_idle_all(time_t t, int deadtime)
 
 	for (conn=Connections;conn;conn=next) {
 		next=conn->next;
-		/* close dirptrs on connections that are idle */
-		if ((t-conn->lastused) > DPTR_IDLE_TIMEOUT)
-			dptr_idlecnum(conn);
 
-		if (conn->num_files_open > 0 || 
-		    (t-conn->lastused)<deadtime)
+		/* Update if connection wasn't idle. */
+		if (conn->lastused != conn->lastused_count) {
+			conn->lastused = t;
+			conn->lastused_count = t;
+		}
+
+		/* close dirptrs on connections that are idle */
+		if ((t-conn->lastused) > DPTR_IDLE_TIMEOUT) {
+			dptr_idlecnum(conn);
+		}
+
+		if (conn->num_files_open > 0 || (t-conn->lastused)<deadtime) {
 			allidle = False;
+		}
 	}
 
 	/*
@@ -293,13 +250,14 @@ void conn_clear_vuid_cache(uint16 vuid)
 }
 
 /****************************************************************************
- Free a conn structure.
+ Free a conn structure - internal part.
 ****************************************************************************/
 
-void conn_free(connection_struct *conn)
+void conn_free_internal(connection_struct *conn)
 {
  	vfs_handle_struct *handle = NULL, *thandle = NULL;
  	TALLOC_CTX *mem_ctx = NULL;
+	struct trans_state *state = NULL;
 
 	/* Free vfs_connection_struct */
 	handle = conn->vfs_handles;
@@ -311,47 +269,55 @@ void conn_free(connection_struct *conn)
 		handle = thandle;
 	}
 
-	DLIST_REMOVE(Connections, conn);
-
-	if (conn->ngroups && conn->groups) {
-		SAFE_FREE(conn->groups);
-		conn->ngroups = 0;
-	}
-
-	if (conn->nt_user_token) {
-		delete_nt_token(&(conn->nt_user_token));
+	/* Free any pending transactions stored on this conn. */
+	for (state = conn->pending_trans; state; state = state->next) {
+		/* state->setup is a talloc child of state. */
+		SAFE_FREE(state->param);
+		SAFE_FREE(state->data);
 	}
 
 	free_namearray(conn->veto_list);
 	free_namearray(conn->hide_list);
 	free_namearray(conn->veto_oplock_list);
+	free_namearray(conn->aio_write_behind_list);
 	
 	string_free(&conn->user);
 	string_free(&conn->dirpath);
 	string_free(&conn->connectpath);
 	string_free(&conn->origpath);
 
-	bitmap_clear(bmap, conn->cnum);
-	num_open--;
-
 	mem_ctx = conn->mem_ctx;
 	ZERO_STRUCTP(conn);
 	talloc_destroy(mem_ctx);
 }
 
+/****************************************************************************
+ Free a conn structure.
+****************************************************************************/
 
+void conn_free(connection_struct *conn)
+{
+	DLIST_REMOVE(Connections, conn);
+
+	bitmap_clear(bmap, conn->cnum);
+	num_open--;
+
+	conn_free_internal(conn);
+}
+ 
 /****************************************************************************
 receive a smbcontrol message to forcibly unmount a share
 the message contains just a share name and all instances of that
 share are unmounted
 the special sharename '*' forces unmount of all shares
 ****************************************************************************/
-void msg_force_tdis(int msg_type, pid_t pid, void *buf, size_t len)
+void msg_force_tdis(int msg_type, struct process_id pid, void *buf, size_t len,
+		    void *private_data)
 {
 	connection_struct *conn, *next;
 	fstring sharename;
 
-	fstrcpy(sharename, buf);
+	fstrcpy(sharename, (const char *)buf);
 
 	if (strcmp(sharename, "*") == 0) {
 		DEBUG(1,("Forcing close of all shares\n"));
@@ -361,7 +327,7 @@ void msg_force_tdis(int msg_type, pid_t pid, void *buf, size_t len)
 
 	for (conn=Connections;conn;conn=next) {
 		next=conn->next;
-		if (strequal(lp_servicename(conn->service), sharename)) {
+		if (strequal(lp_servicename(SNUM(conn)), sharename)) {
 			DEBUG(1,("Forcing close of share %s cnum=%d\n",
 				 sharename, conn->cnum));
 			close_cnum(conn, (uint16)-1);

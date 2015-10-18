@@ -16,8 +16,7 @@
    only important messages. This gives *much* smaller binaries
 */
 #ifndef MAX_DEBUG_LEVEL
-//#define MAX_DEBUG_LEVEL 1000
-#define MAX_DEBUG_LEVEL -1/* modified, water, 09/23/2009*/
+#define MAX_DEBUG_LEVEL 1000
 #endif
 
 /* This defines the section name in the configuration file that will contain */
@@ -235,5 +234,20 @@
 #define SHARING_VIOLATION_USEC_WAIT 950000
 
 #define MAX_LDAP_REPLICATION_SLEEP_TIME 5000 /* In milliseconds. */
+
+/* tdb hash size for the open database. */
+#define SMB_OPEN_DATABASE_TDB_HASH_SIZE 10007
+
+/* Characters we disallow in sharenames. */
+#define INVALID_SHARENAME_CHARS "%<>*?|/\\+=;:\","
+
+/* Seconds between connection attempts to a remote server. */
+#define FAILED_CONNECTION_CACHE_TIMEOUT 30
+
+/* Default hash size for the winbindd cache. */
+#define WINBINDD_CACHE_TDB_DEFAULT_HASH_SIZE 5000
+
+/* Windows minimum lock resolution timeout in ms */
+#define WINDOWS_MINIMUM_LOCK_TIMEOUT_MS 200
 
 #endif
