@@ -1761,9 +1761,38 @@ static bool api_pipe_request(struct pipes_struct *p,
 	pipe_fns = find_pipe_fns_by_context(p->contexts,
 					    pkt->u.request.context_id);
 
-	if ( pipe_fns ) {
-		TALLOC_CTX *frame = talloc_stackframe();
-		ret = api_rpcTNP(p, pkt, pipe_fns->cmds, pipe_fns->n_cmds);
+	switch (p->auth.auth_level) {
+	case DCERPC_AUTH_LEVEL_NONE:
+	case DCERPC_AUTH_LEVEL_INTEGRITY:
+	case DCERPC_AUTH_LEVEL_PRIVACY:
+		break;
+	default:
+		if (!pipe_fns->allow_connect) {
+			char *addr;
+
+			addr = tsocket_address_string(p->remote_address, frame);
+
+			DEBUG(1, ("%s: restrict auth_level_connect access "
+				  "to [%s] with auth[type=0x%x,level=0x%x] "
+				  "on [%s] from [%s]\n",
+				  __func__, interface_name,
+				  p->auth.auth_type,
+				  p->auth.auth_level,
+				  derpc_transport_string_by_transport(p->transport),
+				  addr));
+
+			setup_fault_pdu(p, NT_STATUS(DCERPC_FAULT_ACCESS_DENIED));
+			TALLOC_FREE(frame);
+			return true;
+		}
+		break;
+	}
+
+	if (!srv_pipe_check_verification_trailer(p, pkt, pipe_fns)) {
+		DEBUG(1, ("srv_pipe_check_verification_trailer: failed\n"));
+		set_incoming_fault(p);
+		setup_fault_pdu(p, NT_STATUS(DCERPC_FAULT_ACCESS_DENIED));
+		data_blob_free(&p->out_data.rdata);
 		TALLOC_FREE(frame);
 		return true;
 	}
