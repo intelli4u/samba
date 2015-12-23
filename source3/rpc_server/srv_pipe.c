@@ -274,6 +274,7 @@ static bool setup_bind_nak(struct pipes_struct *p, struct ncacn_packet *pkt)
 	p->out_data.data_sent_length = 0;
 	p->out_data.current_pdu_sent = 0;
 
+	set_incoming_fault(p);
 	TALLOC_FREE(p->auth.auth_ctx);
 	p->auth.auth_level = DCERPC_AUTH_LEVEL_NONE;
 	p->auth.auth_type = DCERPC_AUTH_TYPE_NONE;
@@ -919,11 +920,8 @@ static bool api_pipe_bind_req(struct pipes_struct *p,
 	DATA_BLOB auth_resp = data_blob_null;
 	DATA_BLOB auth_blob = data_blob_null;
 
-	/* No rebinds on a bound pipe - use alter context. */
-	if (p->pipe_bound) {
-		DEBUG(2,("api_pipe_bind_req: rejecting bind request on bound "
-			 "pipe %s.\n",
-			 get_pipe_name_from_syntax(talloc_tos(), &p->syntax)));
+	if (!p->allow_bind) {
+		DEBUG(2,("Pipe not in allow bind state\n"));
 		return setup_bind_nak(p, pkt);
 	}
 	p->allow_bind = false;
