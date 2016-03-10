@@ -5340,6 +5340,8 @@ static void init_globals(bool reinit_globals)
 	Globals.bClientNTLMv2Auth = True; /* Client should always use use NTLMv2, as we can't tell that the server supports it, but most modern servers do */
 	/* Note, that we will also use NTLM2 session security (which is different), if it is available */
 
+	Globals.allow_dcerpc_auth_level_connect = false; /* we don't allow this by default */
+
 	Globals.map_to_guest = 0;	/* By Default, "Never" */
 	Globals.oplock_break_wait_time = 0;	/* By Default, 0 msecs. */
 	Globals.enhanced_browsing = true;
