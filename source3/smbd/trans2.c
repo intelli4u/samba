@@ -57,7 +57,7 @@ static char *store_file_unix_basic_info2(connection_struct *conn,
 
 static NTSTATUS refuse_symlink(connection_struct *conn,
 			const files_struct *fsp,
-			const char *name)
+			const struct smb_filename *smb_fname)
 {
 	SMB_STRUCT_STAT sbuf;
 	const SMB_STRUCT_STAT *pst = NULL;
@@ -584,6 +584,7 @@ NTSTATUS set_ea(connection_struct *conn, files_struct *fsp,
 		const struct smb_filename *smb_fname, struct ea_list *ea_list)
 {
 	char *fname = NULL;
+	NTSTATUS status;
 
 	if (!lp_ea_support(SNUM(conn))) {
 		return NT_STATUS_EAS_NOT_SUPPORTED;
@@ -592,6 +593,12 @@ NTSTATUS set_ea(connection_struct *conn, files_struct *fsp,
 	if (fsp && !(fsp->access_mask & FILE_WRITE_EA)) {
 		return NT_STATUS_ACCESS_DENIED;
 	}
+
+	status = refuse_symlink(conn, fsp, smb_fname->base_name);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
+	}
+
 
 	/* For now setting EAs on streams isn't supported. */
 	fname = smb_fname->base_name;
@@ -4965,6 +4972,13 @@ NTSTATUS smbd_do_qfilepathinfo(connection_struct *conn,
 				uint16 num_file_acls = 0;
 				uint16 num_def_acls = 0;
 
+				status = refuse_symlink(conn,
+						fsp,
+						smb_fname->base_name);
+				if (!NT_STATUS_IS_OK(status)) {
+					return status;
+				}
+
 				if (fsp && fsp->fh->fd != -1) {
 					file_acl = SMB_VFS_SYS_ACL_GET_FD(fsp);
 				} else {
@@ -6486,6 +6500,7 @@ static NTSTATUS smb_set_posix_acl(connection_struct *conn,
 	uint16 num_def_acls;
 	bool valid_file_acls = True;
 	bool valid_def_acls = True;
+	NTSTATUS status;
 
 	if (total_data < SMB_POSIX_ACL_HEADER_SIZE) {
 		return NT_STATUS_INVALID_PARAMETER;
@@ -6511,6 +6526,11 @@ static NTSTATUS smb_set_posix_acl(connection_struct *conn,
 	if (total_data < SMB_POSIX_ACL_HEADER_SIZE +
 			(num_file_acls+num_def_acls)*SMB_POSIX_ACL_ENTRY_SIZE) {
 		return NT_STATUS_INVALID_PARAMETER;
+	}
+
+	status = refuse_symlink(conn, fsp, smb_fname->base_name);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
 	}
 
 	DEBUG(10,("smb_set_posix_acl: file %s num_file_acls = %u, num_def_acls = %u\n",
