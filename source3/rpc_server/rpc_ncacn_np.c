@@ -171,6 +171,7 @@ struct pipes_struct *make_internal_rpc_pipe_p(TALLOC_CTX *mem_ctx,
 
 	p->syntax = *syntax;
 	p->transport = NCALRPC;
+	p->allow_bind = true;
 
 	DEBUG(4,("Created internal pipe %s (pipes_open=%d)\n",
 		 get_pipe_name_from_syntax(talloc_tos(), syntax), pipes_open));

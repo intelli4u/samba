@@ -342,10 +342,12 @@ static bool check_bind_req(struct pipes_struct *p,
 			   struct ndr_syntax_id* transfer,
 			   uint32 context_id)
 {
+	struct pipe_rpc_fns *context_fns;
+	const char *interface_name = NULL;
 	bool ok;
 
 	DEBUG(3,("check_bind_req for %s\n",
-		 get_pipe_name_from_syntax(talloc_tos(), &p->syntax)));
+		 get_pipe_name_from_syntax(talloc_tos(), abstract)));
 
 	ok = ndr_syntax_id_equal(transfer, &ndr_transfer_syntax);
 	if (!ok) {
@@ -353,7 +355,28 @@ static bool check_bind_req(struct pipes_struct *p,
 			 "%s context_id=%u\n",
 			 get_pipe_name_from_syntax(talloc_tos(), abstract),
 			 (unsigned)context_id));
+		return false;
+	}
 
+	for (context_fns = p->contexts;
+	     context_fns != NULL;
+	     context_fns = context_fns->next)
+	{
+		if (context_fns->context_id != context_id) {
+			continue;
+		}
+
+		ok = ndr_syntax_id_equal(&context_fns->syntax,
+					 abstract);
+		if (ok) {
+			return true;
+		}
+
+		DEBUG(1,("check_bind_req: changing abstract syntax for "
+			 "%s context_id=%u into %s not supported\n",
+			 get_pipe_name_from_syntax(talloc_tos(), &context_fns->syntax),
+			 (unsigned)context_id,
+			 get_pipe_name_from_syntax(talloc_tos(), abstract)));
 		return false;
 	}
 
@@ -372,6 +395,11 @@ static bool check_bind_req(struct pipes_struct *p,
 		return False;
 	}
 
+	interface_name = get_pipe_name_from_syntax(talloc_tos(),
+						   abstract);
+
+	SMB_ASSERT(interface_name != NULL);
+
 	context_fns->next = context_fns->prev = NULL;
 	context_fns->n_cmds = rpc_srv_get_pipe_num_cmds(abstract);
 	context_fns->cmds = rpc_srv_get_pipe_cmds(abstract);
@@ -380,7 +408,7 @@ static bool check_bind_req(struct pipes_struct *p,
 
 	context_fns->allow_connect = lp_allow_dcerpc_auth_level_connect();
 	/*
-	 * for the samr, lsarpc and netlogon interfaces we don't allow "connect"
+	 * for the samr and the lsarpc interfaces we don't allow "connect"
 	 * auth_level by default.
 	 */
 	ok = ndr_syntax_id_equal(abstract, &ndr_table_samr.syntax_id);
@@ -1739,18 +1767,14 @@ static bool api_pipe_request(struct pipes_struct *p,
 				struct ncacn_packet *pkt)
 {
 	bool ret = False;
-	bool changed_user = False;
 	PIPE_RPC_FNS *pipe_fns;
+	const char *interface_name = NULL;
 
-	if (p->pipe_bound &&
-	    ((p->auth.auth_type == DCERPC_AUTH_TYPE_NTLMSSP) ||
-	     (p->auth.auth_type == DCERPC_AUTH_TYPE_KRB5) ||
-	     (p->auth.auth_type == DCERPC_AUTH_TYPE_SPNEGO))) {
-		if(!become_authenticated_pipe_user(p->session_info)) {
-			data_blob_free(&p->out_data.rdata);
-			return False;
-		}
-		changed_user = True;
+	if (!p->pipe_bound) {
+		DEBUG(1, ("Pipe not bound!\n"));
+		data_blob_free(&p->out_data.rdata);
+		TALLOC_FREE(frame);
+		return false;
 	}
 
 	DEBUG(5, ("Requested \\PIPE\\%s\n",
@@ -1760,6 +1784,19 @@ static bool api_pipe_request(struct pipes_struct *p,
 
 	pipe_fns = find_pipe_fns_by_context(p->contexts,
 					    pkt->u.request.context_id);
+	if (pipe_fns == NULL) {
+		DEBUG(0, ("No rpc function table associated with context "
+			  "[%d]\n",
+			  pkt->u.request.context_id));
+		data_blob_free(&p->out_data.rdata);
+		TALLOC_FREE(frame);
+		return false;
+	}
+
+	interface_name = get_pipe_name_from_syntax(talloc_tos(),
+						   &pipe_fns->syntax);
+
+	SMB_ASSERT(interface_name != NULL);
 
 	switch (p->auth.auth_level) {
 	case DCERPC_AUTH_LEVEL_NONE:
@@ -1810,9 +1847,11 @@ static bool api_pipe_request(struct pipes_struct *p,
 						    &p->syntax)));
 	}
 
-	if (changed_user) {
-		unbecome_authenticated_pipe_user();
-	}
+
+	ret = api_rpcTNP(p, pkt, pipe_fns->cmds, pipe_fns->n_cmds,
+			 &pipe_fns->syntax);
+	unbecome_authenticated_pipe_user();
+
 
 	return ret;
 }
