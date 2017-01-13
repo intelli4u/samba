@@ -324,6 +324,26 @@ void notify_fname(connection_struct *conn, uint32 action, uint32 filter,
 	SAFE_FREE(fullpath);
 }
 
+/* added start @ Porting the patch from BRCM CSP case ID:946583*/
+static BOOL found_the_same_pending_change(files_struct *fsp, uint32 action, const char *name)
+{
+        struct notify_change *change;
+        int i;
+        if (!fsp || !fsp->notify || !fsp->notify->changes)
+            return False;
+
+        for (i = 0; i < fsp->notify->num_changes; i++) {
+             change = &(fsp->notify->changes[i]);
+             if ((change->action == action) && !strcmp(change->name, name)) {
+                DEBUG(10, ("found pending change: action %d name %s\n", 
+                      action, name));
+                return True;
+            }
+        }
+
+        return False;
+}
+/* added end @ Porting the patch from BRCM CSP case ID:946583*/
 static void notify_fsp(files_struct *fsp, uint32 action, const char *name)
 {
 	struct notify_change *change, *changes;
@@ -357,7 +377,11 @@ static void notify_fsp(files_struct *fsp, uint32 action, const char *name)
 	if (fsp->notify->num_changes == -1) {
 		return;
 	}
-
+/* added start @ Porting the patch from BRCM CSP case ID:946583*/
+    if (found_the_same_pending_change(fsp, action, name2)) {
+        return;
+    }
+/* added end @ Porting the patch from BRCM CSP case ID:946583*/
 	if (!(changes = TALLOC_REALLOC_ARRAY(
 		      fsp->notify, fsp->notify->changes,
 		      struct notify_change, fsp->notify->num_changes+1))) {
