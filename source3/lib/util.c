@@ -1026,6 +1026,50 @@ bool is_in_path(const char *name, name_compare_entry *namelist, bool case_sensit
 	return False;
 }
 
+/* Foxconn added start pling 06/15/2016 */
+/* Only allow "admin" user to see admin paths */
+/* Function to check whether a folder is "admin" folder.
+ * This make use of the "hide files" directive in the smb.conf file. 
+ * Mostly copied from the function 'is_in_path' above with some modifications. 
+ */
+bool is_admin_path(const char *name, name_compare_entry *namelist, bool case_sensitive)
+{
+	int i;
+
+	/* if we have no list it's obviously not in the path */
+	if((namelist == NULL ) || ((namelist != NULL) && (namelist[0].name == NULL))) {
+		return False;
+	}
+
+	for(; namelist->name != NULL; namelist++) {
+		/* The "hide files" directive is modified to support
+		 * path entries. So replace '|' with '/'.
+		 * This also means the directory name cannot have '|'
+		 * character.
+		 */
+		for (i=0; i<strlen(namelist->name); i++) {
+			if (namelist->name[i] == '|')
+				namelist->name[i] = '/';
+		}
+
+		if(namelist->is_wild) {
+			if (mask_match(name, namelist->name, case_sensitive)) {
+				DEBUG(8,("is_in_path: mask match succeeded\n"));
+				return True;
+			}
+		} else {
+			if((case_sensitive && (strcmp(name, namelist->name) == 0))||
+						(!case_sensitive && (strcasecmp_m(name, namelist->name) == 0))) {
+				DEBUG(8,("is_in_path: match succeeded\n"));
+				return True;
+			}
+		}
+	}
+ 
+	return False;
+}
+/* Foxconn added end pling 06/15/2016 */
+
 /*******************************************************************
  Strip a '/' separated list into an array of 
  name_compare_enties structures suitable for 
