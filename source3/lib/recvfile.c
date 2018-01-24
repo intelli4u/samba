@@ -152,7 +152,77 @@ static ssize_t default_sys_recvfile(int fromfd,
  * from the network in the case of return != -1.
  */
 
+//cathy, remove pipe
+#if 1
+ssize_t sys_recvfile(int fromfd,
+			int tofd,
+			off_t offset,
+			size_t count)
+{
+	static bool try_splice_call = 0;
+	size_t total_written = 0;
+	loff_t splice_offset = offset;
 
+	DEBUG(10,("sys_recvfile: from = %d, to = %d, "
+		"offset=%.0f, count = %lu\n",
+		fromfd, tofd, (double)offset,
+		(unsigned long)count));
+
+	if (count == 0) {
+		return 0;
+	}
+
+	/*
+	 * Older Linux kernels have splice for sendfile,
+	 * but it fails for recvfile. Ensure we only try
+	 * this once and always fall back to the userspace
+	 * implementation if recvfile splice fails. JRA.
+	 */
+
+	if (!try_splice_call) {
+		return default_sys_recvfile(fromfd,
+				tofd,
+				offset,
+				count);
+	}
+
+
+	while (count > 0) {
+		int nwritten;
+
+		nwritten = splice(fromfd, NULL, tofd, &offset,
+			       MIN(count, 65536), SPLICE_F_MOVE);
+		if (nwritten == -1) {
+			if (errno == EINTR) {
+				continue;
+			}
+			if (total_written == 0 &&
+			    (errno == EBADF || errno == EINVAL)) {
+				try_splice_call = false;
+				return default_sys_recvfile(fromfd, tofd,
+							    offset, count);
+			}
+			break;
+		}
+
+		total_written += nwritten;
+		count -= nwritten;
+	}
+
+ done:
+	if (count) {
+		int saved_errno = errno;
+		if (drain_socket(fromfd, count) != count) {
+			/* socket is dead. */
+			return -1;
+		}
+		errno = saved_errno;
+	}
+
+	return total_written;
+}
+
+#else
 ssize_t sys_recvfile(int fromfd,
 			int tofd,
 			off_t offset,
@@ -250,6 +320,7 @@ ssize_t sys_recvfile(int fromfd,
 
 	return total_written;
 }
+#endif
 #else
 
 /*****************************************************************

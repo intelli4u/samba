@@ -1960,8 +1960,8 @@ static int vfswrap_ftruncate(vfs_handle_struct *handle, files_struct *fsp, off_t
 	   expansion and some that don't! On Linux fat can't do
 	   ftruncate extend but ext2 can. */
 
-	result = ftruncate(fsp->fh->fd, len);
-
+//	result = ftruncate(fsp->fh->fd, len);
+        result=0;
 	/* According to W. R. Stevens advanced UNIX prog. Pure 4.3 BSD cannot
 	   extend a file with ftruncate. Provide alternate implementation
 	   for this */

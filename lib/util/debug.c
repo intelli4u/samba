@@ -1368,6 +1368,7 @@ bool dbgtext_va(const char *format_str, va_list ap)
 
 bool dbgtext(const char *format_str, ... )
 {
+#if 0
 	va_list ap;
 	bool ret;
 
@@ -1376,4 +1377,6 @@ bool dbgtext(const char *format_str, ... )
 	va_end(ap);
 
 	return ret;
+#endif
+    return 0;
 }

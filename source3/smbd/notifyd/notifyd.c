@@ -347,21 +347,35 @@ int notifyd_recv(struct tevent_req *req)
  * Parse an entry in the notifyd_context->entries database
  */
 
-static bool notifyd_parse_entry(uint8_t *buf, size_t buflen,
+static bool notifyd_parse_entry(TALLOC_CTX *mem_ctx,uint8_t *buf, size_t buflen,
 				struct notifyd_instance **instances,
 				size_t *num_instances)
 {
+	size_t count;
+	
 	if ((buflen % sizeof(struct notifyd_instance)) != 0) {
 		DEBUG(1, ("%s: invalid buffer size: %u\n",
 			  __func__, (unsigned)buflen));
 		return false;
 	}
 
+  count = buflen / sizeof(struct notifyd_instance);
+
 	if (instances != NULL) {
-		*instances = (struct notifyd_instance *)buf;
+//		*instances = (struct notifyd_instance *)buf;
+		/* get a memory-aligned array */
+		*instances =
+		    talloc_array(mem_ctx, struct notifyd_instance, count);
+		if (*instances == NULL) {
+			DEBUG(1, ("%s: out of memory\n", __func__));
+			return false;
+		}
+		memcpy(*instances, buf, buflen);
+
 	}
 	if (num_instances != NULL) {
-		*num_instances = buflen / sizeof(struct notifyd_instance);
+//		*num_instances = buflen / sizeof(struct notifyd_instance);
+		*num_instances = count;
 	}
 	return true;
 }
@@ -411,7 +425,8 @@ static bool notifyd_apply_rec_change(
 	value = dbwrap_record_get_value(rec);
 
 	if (value.dsize != 0) {
-		if (!notifyd_parse_entry(value.dptr, value.dsize, NULL,
+//		if (!notifyd_parse_entry(value.dptr, value.dsize, NULL,
+		if (!notifyd_parse_entry(NULL,value.dptr, value.dsize, NULL,
 					 &num_instances)) {
 			goto fail;
 		}
@@ -739,10 +754,13 @@ static void notifyd_trigger_parser(TDB_DATA key, TDB_DATA data,
 	struct notifyd_instance *instances = NULL;
 	size_t num_instances = 0;
 	size_t i;
+  TALLOC_CTX *frame=talloc_stackframe();
 
-	if (!notifyd_parse_entry(data.dptr, data.dsize, &instances,
+//	if (!notifyd_parse_entry(data.dptr, data.dsize, &instances,
+	if (!notifyd_parse_entry(frame,data.dptr, data.dsize, &instances,
 				 &num_instances)) {
 		DEBUG(1, ("%s: Could not parse notifyd_entry\n", __func__));
+		TALLOC_FREE(frame);
 		return;
 	}
 
@@ -804,6 +822,8 @@ static void notifyd_trigger_parser(TDB_DATA key, TDB_DATA data,
 				  __func__, nt_errstr(status)));
 		}
 	}
+	TALLOC_FREE(frame);
+
 }
 
 /*
@@ -1189,7 +1209,7 @@ static int notifyd_add_proxy_syswatches(struct db_record *rec,
 	memcpy(path, key.dptr, key.dsize);
 	path[key.dsize] = '\0';
 
-	ok = notifyd_parse_entry(value.dptr, value.dsize, &instances,
+	ok = notifyd_parse_entry(db,value.dptr, value.dsize, &instances,
 				 &num_instances);
 	if (!ok) {
 		DEBUG(1, ("%s: Could not parse notifyd entry for %s\n",
@@ -1214,6 +1234,7 @@ static int notifyd_add_proxy_syswatches(struct db_record *rec,
 		}
 	}
 
+  TALLOC_FREE(instances);
 	return 0;
 }
 
@@ -1221,6 +1242,7 @@ static int notifyd_add_proxy_syswatches(struct db_record *rec,
 
 static int notifyd_db_del_syswatches(struct db_record *rec, void *private_data)
 {
+  struct db_context *db = dbwrap_record_get_db(rec);
 	TDB_DATA key = dbwrap_record_get_key(rec);
 	TDB_DATA value = dbwrap_record_get_value(rec);
 	struct notifyd_instance *instances = NULL;
@@ -1228,7 +1250,8 @@ static int notifyd_db_del_syswatches(struct db_record *rec, void *private_data)
 	size_t i;
 	bool ok;
 
-	ok = notifyd_parse_entry(value.dptr, value.dsize, &instances,
+//	ok = notifyd_parse_entry(value.dptr, value.dsize, &instances,
+	ok = notifyd_parse_entry(db,value.dptr, value.dsize, &instances,
 				 &num_instances);
 	if (!ok) {
 		DEBUG(1, ("%s: Could not parse notifyd entry for %.*s\n",
@@ -1238,6 +1261,7 @@ static int notifyd_db_del_syswatches(struct db_record *rec, void *private_data)
 	for (i=0; i<num_instances; i++) {
 		TALLOC_FREE(instances[i].sys_watch);
 	}
+	TALLOC_FREE(instances);
 	return 0;
 }
 
@@ -1472,11 +1496,13 @@ static bool notifyd_parse_db_parser(TDB_DATA key, TDB_DATA value,
 	size_t num_instances = 0;
 	size_t i;
 	bool ok;
-
+	TALLOC_CTX *frame = talloc_stackframe();
+	
 	memcpy(path, key.dptr, key.dsize);
 	path[key.dsize] = 0;
 
-	ok = notifyd_parse_entry(value.dptr, value.dsize, &instances,
+//	ok = notifyd_parse_entry(value.dptr, value.dsize, &instances,
+	ok = notifyd_parse_entry(frame,value.dptr, value.dsize, &instances,
 				 &num_instances);
 	if (!ok) {
 		DEBUG(10, ("%s: Could not parse entry for path %s\n",
@@ -1489,10 +1515,12 @@ static bool notifyd_parse_db_parser(TDB_DATA key, TDB_DATA value,
 			       &instances[i].instance,
 			       state->private_data);
 		if (!ok) {
+			TALLOC_FREE(frame);
 			return false;
 		}
 	}
 
+	TALLOC_FREE(frame);
 	return true;
 }
 

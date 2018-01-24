@@ -39,7 +39,7 @@
    only important messages. This gives *much* smaller binaries
 */
 #ifndef MAX_DEBUG_LEVEL
-#define MAX_DEBUG_LEVEL 1000
+#define MAX_DEBUG_LEVEL -1  /* Disable debug message completely */
 #endif
 
 bool dbgtext_va(const char *, va_list ap) PRINTF_ATTRIBUTE(1,0);
