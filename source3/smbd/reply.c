@@ -4286,8 +4286,8 @@ void reply_write(struct smb_request *req)
 {
 	connection_struct *conn = req->conn;
 	size_t numtowrite;
-	size_t remaining;
 	ssize_t nwritten = -1;
+	size_t remaining;
 	SMB_OFF_T startpos;
 	const char *data;
 	files_struct *fsp;
