@@ -122,7 +122,7 @@ static void do_node_status(int fd,
 	print_sockaddr(addr, sizeof(addr), pss);
 	d_printf("Looking up status of %s\n",addr);
 	make_nmb_name(&nname, name, type);
-	status = node_status_query(fd, &nname, pss, &count, &extra);
+	status = node_status_query(fd, &nname, pss, &count, &extra, 2000);
 	if (status) {
 		for (i=0;i<count;i++) {
 			pull_ascii_fstring(cleanname, status[i].name);

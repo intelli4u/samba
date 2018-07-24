@@ -1550,7 +1550,7 @@ NTSTATUS cli_tcon_andx(struct cli_state *cli, const char *share,
 		status = map_nt_error_from_unix(errno);
 		goto fail;
 	}
-
+	
 	status = cli_tcon_andx_recv(req);
  fail:
 	TALLOC_FREE(frame);
@@ -1645,9 +1645,13 @@ struct tevent_req *cli_negprot_send(TALLOC_CTX *mem_ctx,
 	}
 	state->cli = cli;
 
-	if (cli->protocol < PROTOCOL_NT1)
+	if (cli->protocol < PROTOCOL_NT1){
 		cli->use_spnego = False;
+	}
 
+	//- 20120530 JerryLin add
+	cli->use_spnego = True;
+		
 	/* setup the protocol strings */
 	for (numprots=0; numprots < ARRAY_SIZE(prots); numprots++) {
 		uint8_t c = 2;
@@ -1695,7 +1699,7 @@ static void cli_negprot_done(struct tevent_req *subreq)
 	uint8_t *bytes;
 	NTSTATUS status;
 	uint16_t protnum;
-
+	
 	status = cli_smb_recv(subreq, 1, &wct, &vwv, &num_bytes, &bytes);
 	if (!NT_STATUS_IS_OK(status)) {
 		TALLOC_FREE(subreq);
@@ -1704,7 +1708,7 @@ static void cli_negprot_done(struct tevent_req *subreq)
 	}
 
 	protnum = SVAL(vwv, 0);
-
+	
 	if ((protnum >= ARRAY_SIZE(prots))
 	    || (prots[protnum].prot > cli->protocol)) {
 		tevent_req_nterror(req, NT_STATUS_INVALID_NETWORK_RESPONSE);
@@ -1712,18 +1716,18 @@ static void cli_negprot_done(struct tevent_req *subreq)
 	}
 
 	cli->protocol = prots[protnum].prot;
-
+	
 	if ((cli->protocol < PROTOCOL_NT1) &&
 	    client_is_signing_mandatory(cli)) {
-		DEBUG(0,("cli_negprot: SMB signing is mandatory and the selected protocol level doesn't support it.\n"));
+		DEBUG(0,("cli_negprot: SMB signing is mandatory and the selected protocol level doesn't support it.\n"));	
 		tevent_req_nterror(req, NT_STATUS_ACCESS_DENIED);
 		return;
 	}
-
+	
 	if (cli->protocol >= PROTOCOL_NT1) {    
 		struct timespec ts;
 		bool negotiated_smb_signing = false;
-
+		
 		/* NT protocol */
 		cli->sec_mode = CVAL(vwv + 1, 0);
 		cli->max_mux = SVAL(vwv + 1, 1);
@@ -1740,6 +1744,7 @@ static void cli_negprot_done(struct tevent_req *subreq)
 			cli->readbraw_supported = True;
 			cli->writebraw_supported = True;      
 		}
+		
 		/* work out if they sent us a workgroup */
 		if (!(cli->capabilities & CAP_EXTENDED_SECURITY) &&
 		    smb_buflen(cli->inbuf) > 8) {
@@ -1748,13 +1753,13 @@ static void cli_negprot_done(struct tevent_req *subreq)
 				    num_bytes-8,
 				    STR_UNICODE|STR_NOALIGN);
 		}
-
+		
 		/*
 		 * As signing is slow we only turn it on if either the client or
 		 * the server require it. JRA.
 		 */
 
-		if (cli->sec_mode & NEGOTIATE_SECURITY_SIGNATURES_REQUIRED) {
+		if (cli->sec_mode & NEGOTIATE_SECURITY_SIGNATURES_REQUIRED) {			
 			/* Fail if server says signing is mandatory and we don't want to support it. */
 			if (!client_is_signing_allowed(cli)) {
 				DEBUG(0,("cli_negprot: SMB signing is mandatory and we have disabled it.\n"));
@@ -1763,7 +1768,7 @@ static void cli_negprot_done(struct tevent_req *subreq)
 				return;
 			}
 			negotiated_smb_signing = true;
-		} else if (client_is_signing_mandatory(cli) && client_is_signing_allowed(cli)) {
+		} else if (client_is_signing_mandatory(cli) && client_is_signing_allowed(cli)) {		
 			/* Fail if client says signing is mandatory and the server doesn't support it. */
 			if (!(cli->sec_mode & NEGOTIATE_SECURITY_SIGNATURES_ENABLED)) {
 				DEBUG(1,("cli_negprot: SMB signing is mandatory and the server doesn't support it.\n"));
@@ -1776,7 +1781,7 @@ static void cli_negprot_done(struct tevent_req *subreq)
 			negotiated_smb_signing = true;
 		}
 
-		if (negotiated_smb_signing) {
+		if (negotiated_smb_signing) {			
 			cli_set_signing_negotiated(cli);
 		}
 
@@ -1795,7 +1800,7 @@ static void cli_negprot_done(struct tevent_req *subreq)
 		cli->max_mux = SVAL(vwv + 3, 0);
 		cli->sesskey = IVAL(vwv + 6, 0);
 		cli->serverzone = SVALS(vwv + 10, 0);
-		cli->serverzone *= 60;
+		cli->serverzone *= 60;		
 		/* this time is converted to GMT by make_unix_date */
 		cli->servertime = cli_make_unix_date(
 			cli, (char *)(vwv + 8));
@@ -1806,7 +1811,7 @@ static void cli_negprot_done(struct tevent_req *subreq)
 		/* the old core protocol */
 		cli->use_spnego = False;
 		cli->sec_mode = 0;
-		cli->serverzone = get_time_zone(time(NULL));
+		cli->serverzone = get_time_zone(time(NULL));		
 	}
 
 	cli->max_xmit = MIN(cli->max_xmit, CLI_BUFFER_SIZE);
@@ -1829,7 +1834,7 @@ NTSTATUS cli_negprot(struct cli_state *cli)
 	struct event_context *ev;
 	struct tevent_req *req;
 	NTSTATUS status = NT_STATUS_OK;
-
+	
 	if (cli_has_async_calls(cli)) {
 		/*
 		 * Can't use sync call while an async call is in flight
@@ -1837,24 +1842,24 @@ NTSTATUS cli_negprot(struct cli_state *cli)
 		status = NT_STATUS_INVALID_PARAMETER;
 		goto fail;
 	}
-
+	
 	ev = event_context_init(frame);
 	if (ev == NULL) {
 		status = NT_STATUS_NO_MEMORY;
 		goto fail;
 	}
-
+	
 	req = cli_negprot_send(frame, ev, cli);
 	if (req == NULL) {
 		status = NT_STATUS_NO_MEMORY;
 		goto fail;
 	}
-
+	
 	if (!tevent_req_poll(req, ev)) {
 		status = map_nt_error_from_unix(errno);
 		goto fail;
 	}
-
+	
 	status = cli_negprot_recv(req);
  fail:
 	TALLOC_FREE(frame);
@@ -2251,7 +2256,7 @@ again:
 
 	nt_status = cli_negprot(cli);
 	if (!NT_STATUS_IS_OK(nt_status)) {
-		DEBUG(1, ("failed negprot: %s\n", nt_errstr(nt_status)));
+		DEBUG(1, ("failed negprot: %s\n", nt_errstr(nt_status)));		
 		cli_shutdown(cli);
 		return nt_status;
 	}

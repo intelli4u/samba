@@ -4,7 +4,7 @@
   @file		strlib.c
   @author	N. Devillard
   @date		Jan 2001
-  @version	$Revision: 1.9 $
+  @version	$Revision: 1.1.1.1 $
   @brief	Various string handling routines to complement the C lib.
 
   This modules adds a few complementary string routines usually missing
@@ -13,10 +13,10 @@
 /*--------------------------------------------------------------------------*/
 
 /*
-	$Id: strlib.c,v 1.9 2006-09-27 11:04:11 ndevilla Exp $
-	$Author: ndevilla $
-	$Date: 2006-09-27 11:04:11 $
-	$Revision: 1.9 $
+	$Id: strlib.c,v 1.1.1.1 2011/06/10 09:35:00 andrew Exp $
+	$Author: andrew $
+	$Date: 2011/06/10 09:35:00 $
+	$Revision: 1.1.1.1 $
 */
 
 /*---------------------------------------------------------------------------

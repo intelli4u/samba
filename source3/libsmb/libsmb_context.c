@@ -53,7 +53,8 @@ SMBC_module_init(void * punused)
     lp_set_in_client(True);
                 
     home = getenv("HOME");
-    if (home) {
+    /*
+	if (home) {
         char *conf = NULL;
         if (asprintf(&conf, "%s/.smb/smb.conf", home) > 0) {
             if (lp_load(conf, True, False, False, True)) {
@@ -65,7 +66,8 @@ SMBC_module_init(void * punused)
             SAFE_FREE(conf);
         }
     }
-                
+    */
+
     if (!conf_loaded) {
         /*
          * Well, if that failed, try the get_dyn_CONFIGFILE
@@ -385,7 +387,7 @@ smbc_option_set(SMBCCTX *context,
                 
         } else if (strcmp(option_name, "browse_max_lmb_count") == 0) {
                 option_value.i = va_arg(ap, int);
-                smbc_setOptionBrowseMaxLmbCount(context, option_value.i);
+				smbc_setOptionBrowseMaxLmbCount(context, option_value.i);
                 
         } else if (strcmp(option_name, "urlencode_readdir_entries") == 0) {
                 option_value.b = (bool) va_arg(ap, int);

@@ -4,16 +4,16 @@
    @file    iniparser.h
    @author  N. Devillard
    @date    Mar 2000
-   @version $Revision: 1.23 $
+   @version $Revision: 1.1.1.1 $
    @brief   Parser for ini files.
 */
 /*--------------------------------------------------------------------------*/
 
 /*
-	$Id: iniparser.h,v 1.23 2006-09-27 11:03:35 ndevilla Exp $
-	$Author: ndevilla $
-	$Date: 2006-09-27 11:03:35 $
-	$Revision: 1.23 $
+	$Id: iniparser.h,v 1.1.1.1 2011/06/10 09:35:00 andrew Exp $
+	$Author: andrew $
+	$Date: 2011/06/10 09:35:00 $
+	$Revision: 1.1.1.1 $
 */
 
 #ifndef _INIPARSER_H_

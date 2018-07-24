@@ -253,11 +253,12 @@ NODE_STATUS_STRUCT *node_status_query(int fd,
 					struct nmb_name *name,
 					const struct sockaddr_storage *to_ss,
 					int *num_names,
-					struct node_status_extra *extra)
+					struct node_status_extra *extra,
+					int retry_time)
 {
 	bool found=False;
 	int retries = 2;
-	int retry_time = 2000;
+	//int retry_time = 2000;	
 	struct timeval tval;
 	struct packet_struct p;
 	struct packet_struct *p2;
@@ -302,21 +303,29 @@ NODE_STATUS_STRUCT *node_status_query(int fd,
 	retries--;
 
 	while (1) {
+		
 		struct timeval tval2;
 		GetTimeOfDay(&tval2);
-		if (TvalDiff(&tval,&tval2) > retry_time) {
-			if (!retries)
+
+		//- 20120309 Jerry modify to check if diff time is lower 0
+		if (TvalDiff(&tval,&tval2) > retry_time || TvalDiff(&tval,&tval2) < 0) {
+		//if (TvalDiff(&tval,&tval2) > retry_time) {
+			if (!retries){
+				//fprintf(stderr, "break\n");
 				break;
+			}
 			if (!found && !send_packet(&p))
 				return NULL;
 			GetTimeOfDay(&tval);
 			retries--;
+			//fprintf(stderr,"retry retries=[%d][%d]\n", fd, retries);			
 		}
-
+		//fprintf(stderr, "1, [%d]\n", fd);
 		if ((p2=receive_nmb_packet(fd,90,nmb->header.name_trn_id))) {
+			
 			struct nmb_packet *nmb2 = &p2->packet.nmb;
 			debug_nmb_packet(p2);
-
+			
 			if (nmb2->header.opcode != 0 ||
 			    nmb2->header.nm_flags.bcast ||
 			    nmb2->header.rcode ||
@@ -332,9 +341,12 @@ NODE_STATUS_STRUCT *node_status_query(int fd,
 			ret = parse_node_status(&nmb2->answers->rdata[0],
 					num_names, extra);
 			free_packet(p2);
+			
 			return ret;
 		}
+
 	}
+	//fprintf(stderr, "4\n");
 
 	return NULL;
 }
@@ -391,7 +403,7 @@ bool name_status_find(const char *q_name,
 
 	/* W2K PDC's seem not to respond to '*'#0. JRA */
 	make_nmb_name(&nname, q_name, q_type);
-	status = node_status_query(sock, &nname, to_ss, &count, NULL);
+	status = node_status_query(sock, &nname, to_ss, &count, NULL, 2000);
 	close(sock);
 	if (!status)
 		goto done;
@@ -896,6 +908,7 @@ NTSTATUS name_resolve_bcast(const char *name,
 	if (lp_disable_netbios()) {
 		DEBUG(5,("name_resolve_bcast(%s#%02x): netbios is disabled\n",
 					name, name_type));
+
 		return NT_STATUS_INVALID_PARAMETER;
 	}
 
@@ -909,6 +922,10 @@ NTSTATUS name_resolve_bcast(const char *name,
 	DEBUG(3,("name_resolve_bcast: Attempting broadcast lookup "
 		"for name %s<0x%x>\n", name, name_type));
 
+
+	fprintf(stderr, "JerryLin: namequery.c-->name_resolve_bcast: Attempting broadcast lookup "
+		"for name %s<0x%x> num_interfaces=[%d]\n", name, name_type, num_interfaces);
+	
 	if (!interpret_string_addr(&ss, lp_socket_address(),
 				AI_NUMERICHOST|AI_PASSIVE)) {
 		zero_sockaddr(&ss);
@@ -932,6 +949,7 @@ NTSTATUS name_resolve_bcast(const char *name,
 		if (!pss) {
 			continue;
 		}
+		
 		ss_list = name_query(sock, name, name_type, true,
 				    true, pss, return_count, &flags, NULL);
 		if (ss_list) {
@@ -942,6 +960,7 @@ NTSTATUS name_resolve_bcast(const char *name,
 	/* failed - no response */
 
 	close(sock);
+	
 	return NT_STATUS_UNSUCCESSFUL;
 
 success:
@@ -1205,9 +1224,16 @@ static NTSTATUS resolve_hosts(const char *name, int name_type,
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_ADDRCONFIG;
 
+#ifndef APP_IPKG
 #if !defined(HAVE_IPV6)
 	/* Unless we have IPv6, we really only want IPv4 addresses back. */
 	hints.ai_family = AF_INET;
+#endif
+#else
+#if defined(HAVE_IPV6) //modify by zero
+        /* Unless we have IPv6, we really only want IPv4 addresses back. */
+        hints.ai_family = AF_INET;
+#endif
 #endif
 
 	ret = getaddrinfo(name,
@@ -1398,7 +1424,7 @@ NTSTATUS internal_resolve_name(const char *name,
 
 	DEBUG(10, ("internal_resolve_name: looking up %s#%x (sitename %s)\n",
 			name, name_type, sitename ? sitename : "(null)"));
-
+	
 	if (is_ipaddress(name)) {
 		if ((*return_iplist = SMB_MALLOC_P(struct ip_service)) ==
 				NULL) {
@@ -1449,7 +1475,7 @@ NTSTATUS internal_resolve_name(const char *name,
 	/* iterate through the name resolution backends */
 
 	frame = talloc_stackframe();
-	while (next_token_talloc(frame, &ptr, &tok, LIST_SEP)) {
+	while (next_token_talloc(frame, &ptr, &tok, LIST_SEP)) {		
 		if((strequal(tok, "host") || strequal(tok, "hosts"))) {
 			status = resolve_hosts(name, name_type, return_iplist,
 					       return_count);
@@ -1491,7 +1517,7 @@ NTSTATUS internal_resolve_name(const char *name,
 					goto done;
 				}
 			}
-		} else if(strequal( tok, "bcast")) {
+		} else if(strequal( tok, "bcast")) {			
 			status = name_resolve_bcast(name, name_type,
 						    return_iplist,
 						    return_count);

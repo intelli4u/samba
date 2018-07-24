@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: sha.h 17450 2006-05-05 11:11:43Z lha $ */
+/* $Id: sha256.h,v 1.1.1.1 2011/06/10 09:34:40 andrew Exp $ */
 
 #ifndef HEIM_SHA_H
 /*

@@ -1,5 +1,5 @@
 /* krb5-types.h -- this file was generated for i686-pc-linux-gnu by
-                   $Id: bits.c,v 1.23 2005/01/05 15:22:02 lha Exp $ */
+                   $Id: krb5-types.h,v 1.1.1.1 2011/06/10 09:34:43 andrew Exp $ */
 
 #ifndef __krb5_types_h__
 #define __krb5_types_h__

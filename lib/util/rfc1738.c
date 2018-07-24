@@ -15,7 +15,7 @@
 
 
 /*
- * $Id$
+ * $Id: rfc1738.c,v 1.1.1.1 2011/06/10 09:34:40 andrew Exp $
  *
  * DEBUG:
  * AUTHOR: Harvest Derived

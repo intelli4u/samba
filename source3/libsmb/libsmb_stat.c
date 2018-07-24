@@ -68,12 +68,19 @@ setup_stat(SMBCCTX *context,
 	} else {
 		st->st_mode = SMBC_FILE_MODE;
 	}
-        
+
+	/*
 	if (IS_DOS_ARCHIVE(mode)) st->st_mode |= S_IXUSR;
 	if (IS_DOS_SYSTEM(mode)) st->st_mode |= S_IXGRP;
 	if (IS_DOS_HIDDEN(mode)) st->st_mode |= S_IXOTH;
 	if (!IS_DOS_READONLY(mode)) st->st_mode |= S_IWUSR;
-        
+	*/
+	//- 20120215 JerryLin Modify
+	if (IS_DOS_ARCHIVE(mode)) st->st_mode |= aARCH;
+	if (IS_DOS_SYSTEM(mode)) st->st_mode |= aSYSTEM;
+	if (IS_DOS_HIDDEN(mode)) st->st_mode |= aHIDDEN;
+	if (IS_DOS_READONLY(mode)) st->st_mode |= aRONLY;
+	
 	st->st_size = size;
 #ifdef HAVE_STAT_ST_BLKSIZE
 	st->st_blksize = 512;
@@ -140,6 +147,7 @@ SMBC_stat_ctx(SMBCCTX *context,
 	}
         
 	DEBUG(4, ("smbc_stat(%s)\n", fname));
+//fprintf(stderr, "smbc_stat(%s)\n", fname);
         
 	if (SMBC_parse_path(frame,
                             context,
@@ -155,7 +163,7 @@ SMBC_stat_ctx(SMBCCTX *context,
 		TALLOC_FREE(frame);
                 return -1;
         }
-
+//fprintf(stderr, "\tuser=[%s]\n", user);
 	if (!user || user[0] == (char)0) {
 		user = talloc_strdup(frame, smbc_getUser(context));
 		if (!user) {
@@ -170,6 +178,7 @@ SMBC_stat_ctx(SMBCCTX *context,
         
 	if (!srv) {
 		TALLOC_FREE(frame);
+//fprintf(stderr, "cannot stat with errno=[%d][%s]\n", errno, strerror(errno));		
 		return -1;  /* errno set by SMBC_server */
 	}
         
@@ -185,9 +194,9 @@ SMBC_stat_ctx(SMBCCTX *context,
 	}
         
 	st->st_ino = ino;
-        
+
 	setup_stat(context, st, (char *) fname, size, mode);
-        
+       	   
 	st->st_atime = convert_timespec_to_time_t(access_time_ts);
 	st->st_ctime = convert_timespec_to_time_t(change_time_ts);
 	st->st_mtime = convert_timespec_to_time_t(write_time_ts);

@@ -253,7 +253,7 @@ SMBC_server_internal(TALLOC_CTX *ctx,
         const char *username_used;
  	NTSTATUS status;
 	char *newserver, *newshare;
-
+	
 	zero_sockaddr(&ss);
 	ZERO_STRUCT(c);
 	*in_cache = false;
@@ -262,7 +262,7 @@ SMBC_server_internal(TALLOC_CTX *ctx,
 		errno = EPERM;
 		return NULL;
 	}
-
+	
         /* Look for a cached connection */
         srv = SMBC_find_server(ctx, context, server, share,
                                pp_workgroup, pp_username, pp_password);
@@ -274,7 +274,7 @@ SMBC_server_internal(TALLOC_CTX *ctx,
         if (srv &&
             *share != '\0' &&
             smbc_getOptionOneSharePerServer(context)) {
-
+			
                 /*
                  * ... then if there's no current connection to the share,
                  * connect to it.  SMBC_find_server(), or rather the function
@@ -368,10 +368,9 @@ SMBC_server_internal(TALLOC_CTX *ctx,
                         }
                 }
         }
-
+	
         /* If we have a connection... */
         if (srv) {
-
                 /* ... then we're done here.  Give 'em what they came for. */
 		*in_cache = true;
                 goto done;
@@ -423,16 +422,16 @@ again:
          * Force use of port 139 for first try if share is $IPC, empty, or
          * null, so browse lists can work
          */
-        if (share == NULL || *share == '\0' || is_ipc) {
+       if (share == NULL || *share == '\0' || is_ipc) {
                 port_try_first = 139;
                 port_try_next = 445;
-        } else {
+       } else {
                 port_try_first = 445;
                 port_try_next = 139;
-        }
+       }
 
-        c->port = port_try_first;
-
+	c->port = port_try_first;
+	
 	status = cli_connect(c, server_n, &ss);
 	if (!NT_STATUS_IS_OK(status)) {
 
@@ -446,7 +445,7 @@ again:
 			return NULL;
 		}
 	}
-
+	
 	if (!cli_session_request(c, &calling, &called)) {
 		cli_shutdown(c);
 		if (strcmp(called.name, "*SMBSERVER")) {
@@ -485,6 +484,7 @@ again:
 	}
 
 	DEBUG(4,(" session request ok\n"));
+	
 
 	status = cli_negprot(c);
 
@@ -502,7 +502,7 @@ again:
 					       *pp_password,
                                                strlen(*pp_password),
 					       *pp_workgroup))) {
-
+fprintf(stderr, "JerryLin: Libsmb_server.c->SMBC_server_internal: cli_session_setup fail with username=[%s], password=[%s]\n", username_used, *pp_password);
                 /* Failed.  Try an anonymous login, if allowed by flags. */
                 username_used = "";
 
@@ -517,7 +517,7 @@ again:
                         return NULL;
                 }
 	}
-
+	
 	status = cli_init_creds(c, username_used,
 				*pp_workgroup, *pp_password);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -527,7 +527,7 @@ again:
 	}
 
 	DEBUG(4,(" session setup ok\n"));
-
+	
 	/* here's the fun part....to support 'msdfs proxy' shares
 	   (on Samba or windows) we have to issues a TRANS_GET_DFS_REFERRAL
 	   here before trying to connect to the original share.
@@ -551,17 +551,17 @@ again:
 		TALLOC_FREE(newshare);
 		return srv;
 	}
-
+	
 	/* must be a normal share */
-
 	status = cli_tcon_andx(c, share, "?????", *pp_password,
 			       strlen(*pp_password)+1);
 	if (!NT_STATUS_IS_OK(status)) {
 		errno = map_errno_from_nt_status(status);
+		fprintf(stderr, "JerryLin: Libsmb_server.c->SMBC_server_internal: cli_tcon_andx return %08X, errno=[%d]\n", NT_STATUS_V(status), errno);
 		cli_shutdown(c);
 		return NULL;
 	}
-
+	
 	DEBUG(4,(" tconx ok\n"));
 
         /* Determine if this share supports case sensitivity */
@@ -591,6 +591,7 @@ again:
                                         ? True
                                         : False));
         }
+	
 
 	if (context->internal->smb_encryption_level) {
 		/* Attempt UNIX smb encryption. */

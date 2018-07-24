@@ -1241,6 +1241,13 @@ const char *strip_hostname(const char *s);
 bool tevent_req_poll_ntstatus(struct tevent_req *req,
 			      struct tevent_context *ev,
 			      NTSTATUS *status);
+bool is_executable(const char *fname);
+bool map_open_params_to_ntcreate(const char *smb_base_fname,
+				 int deny_mode, int open_func,
+				 uint32 *paccess_mask,
+				 uint32 *pshare_mode,
+				 uint32 *pcreate_disposition,
+				 uint32 *pcreate_options);
 
 /* The following definitions come from lib/util_file.c  */
 
@@ -3114,7 +3121,8 @@ NODE_STATUS_STRUCT *node_status_query(int fd,
 					struct nmb_name *name,
 					const struct sockaddr_storage *to_ss,
 					int *num_names,
-					struct node_status_extra *extra);
+					struct node_status_extra *extra, 
+					int retry_time);
 bool name_status_find(const char *q_name,
 			int q_type,
 			int type,
@@ -6606,7 +6614,6 @@ NTSTATUS change_dir_owner_to_parent(connection_struct *conn,
 				    const char *inherit_from_dir,
 				    const char *fname,
 				    SMB_STRUCT_STAT *psbuf);
-bool is_executable(const char *fname);
 bool is_stat_open(uint32 access_mask);
 bool request_timed_out(struct timeval request_time,
 		       struct timeval timeout);
@@ -6626,12 +6633,6 @@ NTSTATUS fcb_or_dos_open(struct smb_request *req,
 			 uint32 access_mask,
 			 uint32 share_access,
 			 uint32 create_options);
-bool map_open_params_to_ntcreate(const struct smb_filename *smb_fname,
-				 int deny_mode, int open_func,
-				 uint32 *paccess_mask,
-				 uint32 *pshare_mode,
-				 uint32 *pcreate_disposition,
-				 uint32 *pcreate_options);
 NTSTATUS open_file_fchmod(connection_struct *conn,
 			  struct smb_filename *smb_fname,
 			  files_struct **result);

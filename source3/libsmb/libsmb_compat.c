@@ -163,7 +163,7 @@ smbc_open(const char *furl,
 {
 	SMBCFILE * file;
 	int fd;
-        
+      
         file = smbc_getFunctionOpen(statcont)(statcont, furl, flags, mode);
 	if (!file)
 		return -1;
@@ -555,3 +555,238 @@ smbc_unlink_print_job(const char *purl,
 }
 
 
+int smbc_parse_path(const char *puri, 
+			char *pWorkgroup,
+			char *pServer,
+			char *pShare,
+			char *pPath)
+{
+	SMBCCTX *context = statcont;
+	char *server = NULL;
+	char *share = NULL;
+	char *user = NULL;
+	char *password = NULL;
+	char *workgroup = NULL;
+	char *path = NULL;
+	TALLOC_CTX *frame = talloc_stackframe();
+
+	if (!context || !context->internal->initialized) {
+		errno = EINVAL;  /* Best I can think of ... */
+		TALLOC_FREE(frame);
+		return -1;
+	}
+
+	if (!puri) {
+		errno = EINVAL;
+		TALLOC_FREE(frame);
+		return -1;
+	}
+		
+	DEBUG(4, ("smbc_parse_path(%s)\n", puri));
+		
+	if (SMBC_parse_path(frame,
+						context,
+						puri,
+						&workgroup,
+						&server,
+						&share,
+						&path,
+						&user,
+						&password,
+						NULL)) 
+	{
+		errno = EINVAL;
+		TALLOC_FREE(frame);
+		return -1;
+	}
+
+	memcpy(pWorkgroup, workgroup, strlen(workgroup));
+	memcpy(pServer, server, strlen(server));
+	memcpy(pShare, share, strlen(share));
+	memcpy(pPath, path, strlen(path));
+
+	TALLOC_FREE(frame);
+	return 0;
+}
+
+int smbc_check_connectivity(char *puri)
+{
+	SMBCCTX *context = statcont;
+	char *server = NULL;
+	char *share = NULL;
+	char *user = NULL;
+	char *password = NULL;
+	char *workgroup = NULL;
+	char *path = NULL;
+	TALLOC_CTX *frame = talloc_stackframe();
+
+	if (!context || !context->internal->initialized) {
+		errno = EINVAL;  /* Best I can think of ... */
+		TALLOC_FREE(frame);
+		return -1;
+	}
+
+	if (SMBC_parse_path(frame,
+						context,
+						puri,
+						&workgroup,
+						&server,
+						&share,
+						&path,
+						&user,
+						&password,
+						NULL)) 
+	{
+		errno = EINVAL;
+		TALLOC_FREE(frame);
+		return -1;
+	}
+
+	if(server[0] == '\0') {
+		//perform LAN NBNS scan
+		TALLOC_FREE(frame);
+		return 1;
+	}
+
+	NTSTATUS status;
+	struct cli_state *cli = cli_initialise();
+	struct sockaddr_storage ss;
+
+	//- JerryLin add
+	cli->timeout = 300;
+
+	zero_sockaddr(&ss);
+	cli->port = SMB_PORT1;
+	status = cli_connect(cli, server, &ss);
+
+	if(!NT_STATUS_IS_OK(status)) {
+		zero_sockaddr(&ss);
+		cli->port = SMB_PORT2;
+		status = cli_connect(cli, server, &ss);
+	}
+	cli_shutdown(cli);
+//fprintf(stderr, "JerryLin: libsmb_compat.c-->smbc_check_connectivity: %s can %sbe connected..\n", puri, (NT_STATUS_V(status)) ? "not " : "");
+
+	TALLOC_FREE(frame);
+	return NT_STATUS_IS_OK(status);
+}
+
+
+
+int smbc_server_check_creds(
+            const char *server,
+            const char *share,
+            char *workgroup,
+            char *username,
+            char *password)
+{
+	SMBCCTX *context = statcont;
+//	TALLOC_CTX *frame = talloc_stackframe();
+	SMBCSRV *srv=NULL;
+	struct cli_state *c;
+	struct sockaddr_storage ss;
+ 	NTSTATUS status;
+
+	zero_sockaddr(&ss);
+//fprintf(stderr, "JerryLin: libsmb_compat.c-->smbc_server_check_creds: with server=[%s], share=[%s], user=[%s], passwd=[%s]\n", server, share, username, password);
+	/* have to open a new connection */
+	if ((c = cli_initialise()) == NULL) {
+		errno = ENOMEM;
+		return NT_STATUS_V(NT_STATUS_NO_MEMORY);
+	}
+
+        if (smbc_getOptionUseKerberos(context)) {
+		c->use_kerberos = True;
+	}
+
+        if (smbc_getOptionFallbackAfterKerberos(context)) {
+		c->fallback_after_kerberos = True;
+	}
+
+        if (smbc_getOptionUseCCache(context)) {
+		c->use_ccache = True;
+	}
+
+	c->timeout = smbc_getTimeout(context);
+	c->port = 445;
+
+	status = cli_connect(c, server, &ss);
+	if (!NT_STATUS_IS_OK(status)) {		
+		cli_shutdown(c);
+		errno = ETIMEDOUT;
+		return NT_STATUS_V(status);
+	}
+
+	DEBUG(4,(" session request ok\n"));
+
+	//- JerryLin add
+	//c->use_spnego = True;
+	
+	status = cli_negprot(c);
+
+	if (!NT_STATUS_IS_OK(status)) {
+		fprintf(stderr, "JerryLin: cli_negprot fail: %s\n", nt_errstr(status));
+		cli_shutdown(c);
+		errno = ETIMEDOUT;
+		return NT_STATUS_V(status);
+	}
+	
+	status = cli_session_setup(c, username,
+						password,
+						strlen(password),
+						password,
+						strlen(password),
+						workgroup);
+	if (!NT_STATUS_IS_OK(status)) 
+	{
+fprintf(stderr, "JerryLin: libsmb_compat.c-->SMBC_server_internal: cli_session_setup fail with username=[%s], password=[%s]\n", username, password);
+		cli_shutdown(c);
+		errno = EPERM;
+		return NT_STATUS_V(status);
+	}
+	
+#if 1
+	status = cli_init_creds(c, username, workgroup, password);
+	if (!NT_STATUS_IS_OK(status)) {
+		
+		errno = map_errno_from_nt_status(status);
+		cli_shutdown(c);
+		return NT_STATUS_V(status);
+	}
+
+	DEBUG(4,(" session setup ok\n"));
+		
+	if(share && share[0] != '\0') {
+		/* must be a normal share */
+		status = cli_tcon_andx(c, share, "?????", password, strlen(password)+1);
+		if (!NT_STATUS_IS_OK(status)) {
+			errno = map_errno_from_nt_status(status);
+			cli_shutdown(c);
+			return NT_STATUS_V(status);
+		}
+
+		DEBUG(4,(" tconx ok\n"));
+	}
+#endif	
+
+	cli_shutdown(c);
+
+	return NT_STATUS_V(NT_STATUS_OK);
+}
+
+#include "libsmb_nmblookup.c"
+
+//- JerryLin add
+const char* smbc_nmblookup(const char* ip)
+{
+	TALLOC_CTX *frame = talloc_stackframe();
+	char* hostname = NULL;
+	query_hostname_byip(ip, &hostname);
+	TALLOC_FREE(frame);
+
+	return hostname;
+}
+
+/*==== add by Andrew to support SMB-WebDAV ====*/
+#include "libsmb_webdav.c"
+/*==== end ====*/

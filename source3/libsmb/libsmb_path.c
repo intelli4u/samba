@@ -235,7 +235,7 @@ SMBC_parse_path(TALLOC_CTX *ctx,
 	char *q, *r;
 	char *workgroup = NULL;
 	int len;
-        
+		
 	/* Ensure these returns are at least valid pointers. */
 	*pp_server = talloc_strdup(ctx, "");
 	*pp_share = talloc_strdup(ctx, "");
@@ -278,21 +278,57 @@ SMBC_parse_path(TALLOC_CTX *ctx,
 	}
         
 	p += 2;  /* Skip the double slash */
-        
-        /* See if any options were specified */
-        if ((q = strrchr(p, '?')) != NULL ) {
-                /* There are options.  Null terminate here and point to them */
-                *q++ = '\0';
+	
+//- JerryLin Modify
+#if 1
+    /* See if any options were specified */
+    if ((q = strrchr(p, '?')) != NULL ) {
+    	/* There are options.  Null terminate here and point to them */
+        *q++ = '\0';
                 
-                DEBUG(4, ("Found options '%s'", q));
-                
+        DEBUG(4, ("Found options '%s'", q));
+				
 		/* Copy the options */
 		if (pp_options && *pp_options != NULL) {
 			TALLOC_FREE(*pp_options);
 			*pp_options = talloc_strdup(ctx, q);
 		}
 	}
-        
+#else
+	/* See if any options were specified */
+       if ((q = strrchr(p, '?')) != NULL ) {
+       	/* There are options.  Null terminate here and point to them */
+              *q++ = '\0';
+                
+              DEBUG(4, ("Found options '%s'", q));
+
+		//- 20111221 Jerry add
+		char* option = talloc_strdup(ctx, q);
+		char * pch;
+		pch = strtok(option, "&");
+		while(pch!=NULL){		
+			if(strncmp(pch, "len=", 4)==0){
+				char* r = strchr_m(pch, '/');
+				int index = r- pch;
+				//fprintf(stderr, "parser index = %d\n", index);
+				int len = strlen(pch)-4;	
+					
+				char *temp = talloc_strndup(ctx, pch+4, len);
+				userinfo_len = atoi(temp);
+				//fprintf(stderr, "parser len = %d\n", userinfo_len);
+			}
+
+			pch = strtok( NULL, "&" );
+		}
+			
+		/* Copy the options */
+		if (pp_options && *pp_options != NULL) {
+			TALLOC_FREE(*pp_options);
+			*pp_options = talloc_strdup(ctx, q);			
+		}
+	}			
+#endif
+
 	if (*p == '\0') {
 		goto decoding;
 	}
@@ -317,21 +353,41 @@ SMBC_parse_path(TALLOC_CTX *ctx,
 	 *
 	 * However, we want to parse out [[domain;]user[:password]@] if it
 	 * exists ...
-	 */
-        
-	/* check that '@' occurs before '/', if '/' exists at all */
+	 */ 
+	 /* check that '@' occurs before '/', if '/' exists at all */
+#if 1
+
+	//- 20111221 Jerry add
+	int userinfo_len = -1;
+	int index = 0;
+	
 	q = strchr_m(p, '@');
 	r = strchr_m(p, '/');
-	if (q && (!r || q < r)) {
-		char *userinfo = NULL;
+	
+	while (q&& (!r || q < r))
+	{
+		index = q-p+1;
+		//fprintf (stderr, "found at %d\n", index);
+	    q = strchr_m(q+1, '@');
+	}
+		
+	if(index>0)
+		userinfo_len = index - 1;
+		
+	 if(userinfo_len!=-1){
+	 	char *userinfo = NULL;
 		const char *u;
-                
-		next_token_no_ltrim_talloc(ctx, &p, &userinfo, "@");
+
+		userinfo = talloc_strndup(ctx, p, userinfo_len);
+			
 		if (!userinfo) {
 			return -1;
 		}
+
+		//fprintf(stderr, "Libsmb_path.c->SMBC_parse_path: userinfo=%s\n", userinfo);
+
 		u = userinfo;
-                
+	             
 		if (strchr_m(u, ';')) {
 			next_token_no_ltrim_talloc(ctx, &u, &workgroup, ";");
 			if (!workgroup) {
@@ -341,7 +397,7 @@ SMBC_parse_path(TALLOC_CTX *ctx,
 				*pp_workgroup = workgroup;
 			}
 		}
-                
+	                
 		if (strchr_m(u, ':')) {
 			next_token_no_ltrim_talloc(ctx, &u, pp_user, ":");
 			if (!*pp_user) {
@@ -357,12 +413,63 @@ SMBC_parse_path(TALLOC_CTX *ctx,
 				return -1;
 			}
 		}
+
+		p = p + userinfo_len + 1;
+
+		//fprintf(stderr, "pp_user=%s, pp_password=%s\n", *pp_user, *pp_password);
 	}
-        
+	
+#else
+	   
+	/* check that '@' occurs before '/', if '/' exists at all */
+	q = strchr_m(p, '@');
+	r = strchr_m(p, '/');
+
+	if (q && (!r || q < r)) {
+		char *userinfo = NULL;
+		const char *u;
+	                
+		next_token_no_ltrim_talloc(ctx, &p, &userinfo, "@");
+		if (!userinfo) {
+			return -1;
+		}
+		u = userinfo;
+	             
+		if (strchr_m(u, ';')) {
+			next_token_no_ltrim_talloc(ctx, &u, &workgroup, ";");
+			if (!workgroup) {
+				return -1;
+			}
+			if (pp_workgroup) {
+				*pp_workgroup = workgroup;
+			}
+		}
+	                
+		if (strchr_m(u, ':')) {
+			next_token_no_ltrim_talloc(ctx, &u, pp_user, ":");
+			if (!*pp_user) {
+				return -1;
+			}
+			*pp_password = talloc_strdup(ctx, u);
+			if (!*pp_password) {
+				return -1;
+			}
+		} else {
+			*pp_user = talloc_strdup(ctx, u);
+			if (!*pp_user) {
+				return -1;
+			}
+		}
+
+		fprintf(stderr, "pp_user=%s, pp_password=%s\n", *pp_user, *pp_password);
+				
+	}
+#endif
+
 	if (!next_token_talloc(ctx, &p, pp_server, "/")) {
 		return -1;
 	}
-        
+       
 	if (*p == (char)0) {
 		goto decoding;  /* That's it ... */
 	}
@@ -370,7 +477,7 @@ SMBC_parse_path(TALLOC_CTX *ctx,
 	if (!next_token_talloc(ctx, &p, pp_share, "/")) {
 		return -1;
 	}
-        
+       
         /*
          * Prepend a leading slash if there's a file path, as required by
          * NetApp filers.

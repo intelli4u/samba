@@ -770,19 +770,19 @@ NTSTATUS cli_smb_recv(struct tevent_req *req, uint8_t min_wct,
 	uint16_t num_bytes;
 	size_t wct_ofs, bytes_offset;
 	int i;
-
+	
 	if (tevent_req_is_nterror(req, &status)) {
 		return status;
 	}
-
+	
 	if (state->inbuf == NULL) {
 		/* This was a request without a reply */
 		return NT_STATUS_OK;
 	}
-
+	
 	wct_ofs = smb_wct;
 	cmd = CVAL(state->inbuf, smb_com);
-
+	
 	for (i=0; i<state->chain_num; i++) {
 		if (i < state->chain_num-1) {
 			if (cmd == 0xff) {
@@ -792,7 +792,7 @@ NTSTATUS cli_smb_recv(struct tevent_req *req, uint8_t min_wct,
 				return NT_STATUS_INVALID_NETWORK_RESPONSE;
 			}
 		}
-
+		
 		if (!have_andx_command((char *)state->inbuf, wct_ofs)) {
 			/*
 			 * This request was not completed because a previous
@@ -819,7 +819,7 @@ NTSTATUS cli_smb_recv(struct tevent_req *req, uint8_t min_wct,
 	status = cli_pull_error((char *)state->inbuf);
 
 	if (!have_andx_command((char *)state->inbuf, wct_ofs)
-	    && NT_STATUS_IS_ERR(status)) {
+	    && NT_STATUS_IS_ERR(status)) {	   	
 		/*
 		 * The last command takes the error code. All further commands
 		 * down the requested chain will get a
@@ -828,6 +828,8 @@ NTSTATUS cli_smb_recv(struct tevent_req *req, uint8_t min_wct,
 		return status;
 	}
 
+no_err:
+
 	wct = CVAL(state->inbuf, wct_ofs);
 	bytes_offset = wct_ofs + 1 + wct * sizeof(uint16_t);
 	num_bytes = SVAL(state->inbuf, bytes_offset);
@@ -835,7 +837,7 @@ NTSTATUS cli_smb_recv(struct tevent_req *req, uint8_t min_wct,
 	if (wct < min_wct) {
 		return NT_STATUS_INVALID_NETWORK_RESPONSE;
 	}
-
+	
 	/*
 	 * wct_ofs is a 16-bit value plus 4, wct is a 8-bit value, num_bytes
 	 * is a 16-bit value. So bytes_offset being size_t should be far from
@@ -858,7 +860,7 @@ NTSTATUS cli_smb_recv(struct tevent_req *req, uint8_t min_wct,
 	if (pbytes != NULL) {
 		*pbytes = (uint8_t *)state->inbuf + bytes_offset + 2;
 	}
-
+	
 	return NT_STATUS_OK;
 }
 

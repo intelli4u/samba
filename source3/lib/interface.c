@@ -258,6 +258,7 @@ const struct sockaddr_storage *iface_n_bcast(int n)
 	}
 
 	if (i) {
+		char addr[INET6_ADDRSTRLEN];
 		return &i->bcast;
 	}
 	return NULL;
@@ -328,6 +329,7 @@ static void add_interface(const struct iface_struct *ifs)
 		SAFE_FREE(iface);
 		return;
 	}
+	
 	iface->flags = ifs->flags;
 	iface->ip = ifs->ip;
 	iface->netmask = ifs->netmask;

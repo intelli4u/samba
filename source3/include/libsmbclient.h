@@ -233,6 +233,21 @@ struct print_job_info
 	 */
 	time_t t;
 };
+
+typedef struct file_info {
+	struct cli_state *cli;
+	uint64_t size;
+	uint16_t mode;
+	uid_t uid;
+	gid_t gid;
+	/* these times are normally kept in GMT */
+	struct timespec mtime_ts;
+	struct timespec atime_ts;
+	struct timespec ctime_ts;
+	char *name;
+	char short_name[13*3]; /* the *3 is to cope with multi-byte */
+} file_info;
+
 #endif /* _CLIENT_H */
 
 
@@ -2600,6 +2615,14 @@ int smbc_unlink_print_job(const char *purl, int id);
  */
 int smbc_remove_unused_server(SMBCCTX * context, SMBCSRV * srv);
 
+int smbc_parse_path(const char *purl, char *pWorkgroup, char *pServer, char *pShare, char *pPath);
+int smbc_check_connectivity(char *puri);
+int smbc_server_check_creds(
+            const char *server,
+            const char *share,
+            char *workgroup,
+            char *username,
+            char *password);
 #ifdef __cplusplus
 }
 #endif
@@ -3049,5 +3072,98 @@ struct _SMBCCTX
 	struct SMBC_internal_data * internal;
 };
 
+#if 1
+/*============================================================*/
+//#ifdef LIGHTTPD_INCLUDE
+#ifdef HAVE_LIBSMBCLIENT_H
+
+#define HAVE_IMMEDIATE_STRUCTURES
+#if defined(HAVE_IMMEDIATE_STRUCTURES)
+typedef struct {uint32_t v;} NTSTATUS;
+#define NT_STATUS(x) ((NTSTATUS) { x })
+#define NT_STATUS_V(x) ((x).v)
+#else
+typedef uint32_t NTSTATUS;
+#define NT_STATUS(x) (x)
+#define NT_STATUS_V(x) (x)
+#endif
+
+#define NT_STATUS_OK NT_STATUS(0x0000)
+#define NT_STATUS_ACCESS_DENIED NT_STATUS(0xC0000000 | 0x0022)
+#define NT_STATUS_LOGON_FAILURE NT_STATUS(0xC0000000 | 0x006d)
+#endif
+
+typedef struct smb_file_s {
+	int fnum;
+	int offset;
+	int whence;
+	char *fname;
+}smb_file_t;
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+struct cli_state *smbc_cli_initialize();
+uint32_t smbc_cli_connect(struct cli_state *cli, const char *desthost, int port);
+void smbc_cli_shutdown(struct cli_state *cli);
+int smbc_cli_get_smb_secblob(struct cli_state *cli, unsigned char *blob);
+uint32_t smbc_cli_get_smb_challenge(struct cli_state *cli, char *blob);
+uint32_t smbc_cli_send_negprot(struct cli_state *cli);
+uint32_t smbc_cli_send_negprot_done(struct cli_state *cli);
+int smbc_cli_get_protocol(struct cli_state *cli);
+int smbc_cli_get_socket(struct cli_state *cli);
+uint32_t smbc_cli_get_capabilities(struct cli_state *cli);
+uint32_t smbc_cli_tree_connect(struct cli_state *cli, char *fname);
+int smbc_cli_parse_path(const char *fname, 
+			char *pWorkgroup,
+			char *pServer,
+			char *pShare,
+			char *pPath);
+int smbc_cli_stat(struct cli_state *cli, const char *fname, struct stat *st);
+SMBCFILE *smbc_cli_opendir2(const char *fname);
+SMBCFILE *smbc_cli_opendir(struct cli_state *cli, const char *fname);
+SMBCFILE *smbc_cli_open_share(struct cli_state *cli, const char *fname);
+uint32_t smbc_cli_rmdir(struct cli_state *cli, const char *dname);
+uint32_t smbc_cli_mkdir(struct cli_state *cli, const char *fname);
+uint32_t smbc_cli_rename(struct cli_state *cli, char *src, char *dst);
+struct smbc_dirent *smbc_cli_readdir(SMBCFILE *dir);
+int smbc_cli_closedir(SMBCFILE *dir);
+int smbc_cli_list(struct cli_state *cli,const char *mask, unsigned short attribute,
+	     void (*fn)(const char *, file_info *, const char *, void *), void *state);
+void* smbc_cli_ntlmssp_state_alloc();
+void smbc_cli_ntlmssp_state_free(void *state);
+int smbc_cli_send_session_setup_nego(struct cli_state *cli, void *state, char *ntlm_msg, int ntlm_len);
+uint32_t smbc_cli_session_setup_ntlmssp_nego(struct cli_state *cli, void *state, char *ntlm_msg, int ntlm_msg_len);
+uint32_t smbc_cli_session_setup_ntlmssp_auth(struct cli_state *cli, void *state, char *ntlm_msg, int ntlm_msg_len);
+uint32_t smbc_cli_session_setup_lanman2(struct cli_state *cli, char *ntlm_msg, int ntlm_msg_len);
+smb_file_t *smbc_cli_ntcreate(struct cli_state *cli, char *fname, 
+	uint32_t desired_access, 
+	uint32_t create_disposition,
+	uint32_t create_options);
+
+uint32_t smbc_cli_get(struct cli_state *cli, char *pathname,
+	NTSTATUS (*sink)(char *buf, size_t n, void *priv),
+	void *priv);
+uint32_t smbc_cli_put(struct cli_state *cli, char *rname, int reput,
+	 size_t (*push_source)(uint8_t *buf, size_t n, void *priv),
+	void *priv);
+smb_file_t* smbc_cli_open(struct cli_state *cli, char *rname, int flags);
+uint32_t smbc_cli_lseek(struct cli_state *cli, smb_file_t *smbf, off_t offset, int whence);
+size_t smbc_cli_write(struct cli_state *cli, smb_file_t *smbf, uint16_t write_mode, const char *buf, size_t size);
+size_t smbc_cli_read(struct cli_state *cli, smb_file_t *smbf, char *buf, size_t size);
+uint32_t smbc_cli_close(struct cli_state *cli, smb_file_t *smbf);
+uint32_t smbc_cli_unlink(struct cli_state *cli, const char *fname, uint16_t mayhave_attrs);
+void *smbc_cli_nmb_lookup( void *priv );
+void smbc_cli_nmb_terminate(int term);
+
+//- Jerry add
+const char* smbc_nmblookup(const char* ip);
+#ifdef __cplusplus
+}
+#endif
+
+
+#endif //#if 0
 
 #endif /* SMBCLIENT_H_INCLUDED */

@@ -85,7 +85,7 @@ static NODE_STATUS_STRUCT *lookup_byaddr_backend(const char *addr, int *count)
 	if (!interpret_string_addr(&ss, addr, AI_NUMERICHOST)) {
 		return NULL;
 	}
-	status = node_status_query(fd, &nname, &ss, count, NULL);
+	status = node_status_query(fd, &nname, &ss, count, NULL, 2000);
 
 	close(fd);
 	return status;

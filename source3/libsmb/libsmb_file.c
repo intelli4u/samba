@@ -50,7 +50,7 @@ SMBC_open_ctx(SMBCCTX *context,
 	uint16_t fd;
 	NTSTATUS status = NT_STATUS_OBJECT_PATH_INVALID;
 	TALLOC_CTX *frame = talloc_stackframe();
-        
+     
 	if (!context || !context->internal->initialized) {
                 
 		errno = EINVAL;  /* Best I can think of ... */
@@ -58,7 +58,7 @@ SMBC_open_ctx(SMBCCTX *context,
 		return NULL;
                 
 	}
-        
+     
 	if (!fname) {
                 
 		errno = EINVAL;
@@ -66,7 +66,7 @@ SMBC_open_ctx(SMBCCTX *context,
 		return NULL;
                 
 	}
-        
+      
 	if (SMBC_parse_path(frame,
                             context,
                             fname,
@@ -81,7 +81,7 @@ SMBC_open_ctx(SMBCCTX *context,
 		TALLOC_FREE(frame);
 		return NULL;
         }
-        
+      
 	if (!user || user[0] == (char)0) {
 		user = talloc_strdup(frame, smbc_getUser(context));
 		if (!user) {
@@ -90,7 +90,7 @@ SMBC_open_ctx(SMBCCTX *context,
 			return NULL;
 		}
 	}
-        
+       
 	srv = SMBC_server(frame, context, True,
                           server, share, &workgroup, &user, &password);
         
@@ -99,14 +99,14 @@ SMBC_open_ctx(SMBCCTX *context,
 		TALLOC_FREE(frame);
 		return NULL;  /* SMBC_server sets errno */
 	}
-        
+      
 	/* Hmmm, the test for a directory is suspect here ... FIXME */
         
 	if (strlen(path) > 0 && path[strlen(path) - 1] == '\\') {
 		status = NT_STATUS_OBJECT_PATH_INVALID;
 	} else {
 		file = SMB_MALLOC_P(SMBCFILE);
-                
+             
 		if (!file) {
 			errno = ENOMEM;
 			TALLOC_FREE(frame);
@@ -114,7 +114,7 @@ SMBC_open_ctx(SMBCCTX *context,
 		}
                 
 		ZERO_STRUCTP(file);
-                
+               
 		/*d_printf(">>>open: resolving %s\n", path);*/
 		if (!cli_resolve_path(frame, "", context->internal->auth_info,
 				srv->cli, path,
@@ -126,14 +126,13 @@ SMBC_open_ctx(SMBCCTX *context,
 			return NULL;
 		}
 		/*d_printf(">>>open: resolved %s as %s\n", path, targetpath);*/
-                
+                 
 		status = cli_open(targetcli, targetpath, flags,
                                    context->internal->share_mode, &fd);
 		if (!NT_STATUS_IS_OK(status)) {
                         
 			/* Handle the error ... */
-                        
-			SAFE_FREE(file);
+                    SAFE_FREE(file);
 			errno = SMBC_errno(context, targetcli);
 			TALLOC_FREE(frame);
 			return NULL;
@@ -147,7 +146,7 @@ SMBC_open_ctx(SMBCCTX *context,
 		file->srv     = srv;
 		file->offset  = 0;
 		file->file    = True;
-                
+             
 		DLIST_ADD(context->internal->files, file);
                 
                 /*
@@ -180,12 +179,12 @@ SMBC_open_ctx(SMBCCTX *context,
                                 return NULL;
                         }
                 }
-                
+               
 		TALLOC_FREE(frame);
 		return file;
                 
 	}
-        
+
 	/* Check if opendir needed ... */
         
 	if (!NT_STATUS_IS_OK(status)) {
@@ -263,7 +262,7 @@ SMBC_read_ctx(SMBCCTX *context,
 	}
         
 	DEBUG(4, ("smbc_read(%p, %d)\n", file, (int)count));
-        
+       
 	if (!file || !SMBC_dlist_contains(context->internal->files, file)) {
 		errno = EBADF;
 		TALLOC_FREE(frame);
@@ -312,8 +311,7 @@ SMBC_read_ctx(SMBCCTX *context,
 	ret = cli_read(targetcli, file->cli_fd, (char *)buf, offset, count);
         
 	if (ret < 0) {
-                
-		errno = SMBC_errno(context, targetcli);
+              errno = SMBC_errno(context, targetcli);
 		TALLOC_FREE(frame);
 		return -1;
                 

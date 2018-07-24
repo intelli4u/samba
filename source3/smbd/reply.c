@@ -1753,7 +1753,7 @@ void reply_open(struct smb_request *req)
 		goto out;
 	}
 
-	if (!map_open_params_to_ntcreate(smb_fname, deny_mode,
+	if (!map_open_params_to_ntcreate(smb_fname->base_name, deny_mode,
 					 OPENX_FILE_EXISTS_OPEN, &access_mask,
 					 &share_mode, &create_disposition,
 					 &create_options)) {
@@ -1926,7 +1926,8 @@ void reply_open_and_X(struct smb_request *req)
 		goto out;
 	}
 
-	if (!map_open_params_to_ntcreate(smb_fname, deny_mode, smb_ofun,
+	if (!map_open_params_to_ntcreate(smb_fname->base_name, deny_mode,
+					 smb_ofun,
 					 &access_mask, &share_mode,
 					 &create_disposition,
 					 &create_options)) {
@@ -3965,6 +3966,7 @@ void reply_writeunlock(struct smb_request *req)
 	connection_struct *conn = req->conn;
 	ssize_t nwritten = -1;
 	size_t numtowrite;
+	size_t remaining;
 	SMB_OFF_T startpos;
 	const char *data;
 	NTSTATUS status = NT_STATUS_OK;
@@ -3996,6 +3998,17 @@ void reply_writeunlock(struct smb_request *req)
 	numtowrite = SVAL(req->vwv+1, 0);
 	startpos = IVAL_TO_SMB_OFF_T(req->vwv+2, 0);
 	data = (const char *)req->buf + 3;
+
+	/*
+	 * Ensure client isn't asking us to write more than
+	 * they sent. CVE-2017-12163.
+	 */
+	remaining = smbreq_bufrem(req, data);
+	if (numtowrite > remaining) {
+		reply_nterror(req, NT_STATUS_INVALID_PARAMETER);
+		END_PROFILE(SMBwriteunlock);
+		return;
+	}
 
 	if (numtowrite) {
 		init_strict_lock_struct(fsp, (uint32)req->smbpid,
@@ -4078,6 +4091,7 @@ void reply_write(struct smb_request *req)
 {
 	connection_struct *conn = req->conn;
 	size_t numtowrite;
+	size_t remaining;
 	ssize_t nwritten = -1;
 	SMB_OFF_T startpos;
 	const char *data;
@@ -4117,6 +4131,17 @@ void reply_write(struct smb_request *req)
 	numtowrite = SVAL(req->vwv+1, 0);
 	startpos = IVAL_TO_SMB_OFF_T(req->vwv+2, 0);
 	data = (const char *)req->buf + 3;
+
+	/*
+	 * Ensure client isn't asking us to write more than
+	 * they sent. CVE-2017-12163.
+	 */
+	remaining = smbreq_bufrem(req, data);
+	if (numtowrite > remaining) {
+		reply_nterror(req, NT_STATUS_INVALID_PARAMETER);
+		END_PROFILE(SMBwrite);
+		return;
+	}
 
 	init_strict_lock_struct(fsp, (uint32)req->smbpid,
 	    (uint64_t)startpos, (uint64_t)numtowrite, WRITE_LOCK,
@@ -4688,6 +4713,7 @@ void reply_writeclose(struct smb_request *req)
 	connection_struct *conn = req->conn;
 	size_t numtowrite;
 	ssize_t nwritten = -1;
+	size_t remaining;
 	NTSTATUS close_status = NT_STATUS_OK;
 	SMB_OFF_T startpos;
 	const char *data;
@@ -4719,6 +4745,17 @@ void reply_writeclose(struct smb_request *req)
 	startpos = IVAL_TO_SMB_OFF_T(req->vwv+2, 0);
 	mtime = convert_time_t_to_timespec(srv_make_unix_date3(req->vwv+4));
 	data = (const char *)req->buf + 1;
+
+	/*
+	* Ensure client isn't asking us to write more than
+	* they sent. CVE-2017-12163.
+	*/
+	remaining = smbreq_bufrem(req, data);
+	if (numtowrite > remaining) {
+		reply_nterror(req, NT_STATUS_INVALID_PARAMETER);
+		END_PROFILE(SMBwriteclose);
+		return;
+	}
 
 	if (numtowrite) {
 		init_strict_lock_struct(fsp, (uint32)req->smbpid,
@@ -6428,7 +6465,8 @@ NTSTATUS copy_file(TALLOC_CTX *ctx,
 	if (!target_is_directory && count) {
 		new_create_disposition = FILE_OPEN;
 	} else {
-		if (!map_open_params_to_ntcreate(smb_fname_dst_tmp, 0, ofun,
+		if (!map_open_params_to_ntcreate(smb_fname_dst_tmp->base_name,
+						 0, ofun,
 						 NULL, NULL,
 						 &new_create_disposition,
 						 NULL)) {

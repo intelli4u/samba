@@ -142,9 +142,7 @@ list_unique_wg_fn(const char *name,
         struct smbc_dirent *dirent;
 	int dirent_type;
         int do_remove = 0;
-
 	dirent_type = dir->dir_type;
-
 	if (add_dirent(dir, name, comment, dirent_type) < 0) {
 
 		/* An error occurred, what do we do? */
@@ -183,7 +181,6 @@ list_fn(const char *name,
 {
 	SMBCFILE *dir = (SMBCFILE *)state;
 	int dirent_type;
-
 	/*
          * We need to process the type a little ...
          *
@@ -251,7 +248,7 @@ dir_list_fn(const char *mnt,
 
 }
 
-static int
+int
 net_share_enum_rpc(struct cli_state *cli,
                    void (*fn)(const char *name,
                               uint32 type,
@@ -352,27 +349,26 @@ SMBCFILE *
 SMBC_opendir_ctx(SMBCCTX *context,
                  const char *fname)
 {
-        int saved_errno;
+	int saved_errno;
 	char *server = NULL;
-        char *share = NULL;
-        char *user = NULL;
-        char *password = NULL;
-        char *options = NULL;
+       char *share = NULL;
+       char *user = NULL;
+       char *password = NULL;
+       char *options = NULL;
 	char *workgroup = NULL;
 	char *path = NULL;
-        uint16 mode;
-        char *p = NULL;
+       uint16 mode;
+       char *p = NULL;
 	SMBCSRV *srv  = NULL;
 	SMBCFILE *dir = NULL;
 	struct sockaddr_storage rem_ss;
 	TALLOC_CTX *frame = talloc_stackframe();
 
 	if (!context || !context->internal->initialized) {
-	        DEBUG(4, ("no valid context\n"));
+		DEBUG(4, ("no valid context\n"));
 		errno = EINVAL + 8192;
 		TALLOC_FREE(frame);
 		return NULL;
-
 	}
 
 	if (!fname) {
@@ -392,7 +388,7 @@ SMBC_opendir_ctx(SMBCCTX *context,
                             &user,
                             &password,
                             &options)) {
-	        DEBUG(4, ("no valid path\n"));
+		DEBUG(4, ("no valid path\n"));
 		errno = EINVAL + 8194;
 		TALLOC_FREE(frame);
 		return NULL;
@@ -406,7 +402,7 @@ SMBC_opendir_ctx(SMBCCTX *context,
         if (SMBC_check_options(server, share, path, options)) {
                 DEBUG(4, ("unacceptable options (%s)\n", options));
                 errno = EINVAL + 8195;
-		TALLOC_FREE(frame);
+		TALLOC_FREE(frame);		
                 return NULL;
         }
 
@@ -414,7 +410,7 @@ SMBC_opendir_ctx(SMBCCTX *context,
 		user = talloc_strdup(frame, smbc_getUser(context));
 		if (!user) {
 			errno = ENOMEM;
-			TALLOC_FREE(frame);
+			TALLOC_FREE(frame);		
 			return NULL;
 		}
 	}
@@ -438,15 +434,14 @@ SMBC_opendir_ctx(SMBCCTX *context,
 
 	if (server[0] == (char)0) {
 
-                int i;
-                int count;
-                int max_lmb_count;
-                struct ip_service *ip_list;
-                struct ip_service server_addr;
-                struct user_auth_info u_info;
+              int i;
+              int count;
+              int max_lmb_count;
+              struct ip_service *ip_list;
+              struct ip_service server_addr;
+              struct user_auth_info u_info;
 
 		if (share[0] != (char)0 || path[0] != (char)0) {
-
 			errno = EINVAL + 8196;
 			if (dir) {
 				SAFE_FREE(dir->fname);
@@ -456,11 +451,10 @@ SMBC_opendir_ctx(SMBCCTX *context,
 			return NULL;
 		}
 
-                /* Determine how many local master browsers to query */
-                max_lmb_count = (smbc_getOptionBrowseMaxLmbCount(context) == 0
+              /* Determine how many local master browsers to query */
+              max_lmb_count = (smbc_getOptionBrowseMaxLmbCount(context) == 0
                                  ? INT_MAX
                                  : smbc_getOptionBrowseMaxLmbCount(context));
-
 		memset(&u_info, '\0', sizeof(u_info));
 		u_info.username = talloc_strdup(frame,user);
 		u_info.password = talloc_strdup(frame,password);
@@ -481,46 +475,45 @@ SMBC_opendir_ctx(SMBCCTX *context,
                  * doesn't work, then try our other methods which return only
                  * a single master browser.
                  */
-
-                ip_list = NULL;
-                if (!NT_STATUS_IS_OK(name_resolve_bcast(MSBROWSE, 1, &ip_list,
+		
+              ip_list = NULL;
+		if (!NT_STATUS_IS_OK(name_resolve_bcast(MSBROWSE, 1, &ip_list,
                                                         &count)))
 		{
+			SAFE_FREE(ip_list);
 
-                        SAFE_FREE(ip_list);
-
-                        if (!find_master_ip(workgroup, &server_addr.ss)) {
+			if (!find_master_ip(workgroup, &server_addr.ss)) {
 
 				if (dir) {
 					SAFE_FREE(dir->fname);
 					SAFE_FREE(dir);
 				}
-                                errno = ENOENT;
+	                     errno = ENOENT;
 				TALLOC_FREE(frame);
-                                return NULL;
-                        }
+	                     return NULL;
+	              }
 
 			ip_list = (struct ip_service *)memdup(
-				&server_addr, sizeof(server_addr));
+					&server_addr, sizeof(server_addr));
 			if (ip_list == NULL) {
 				errno = ENOMEM;
 				TALLOC_FREE(frame);
 				return NULL;
 			}
-                        count = 1;
-                }
+	              count = 1;
+		}
 
-                for (i = 0; i < count && i < max_lmb_count; i++) {
+		for (i = 0; i < count && i < max_lmb_count; i++) {
 			char addr[INET6_ADDRSTRLEN];
 			char *wg_ptr = NULL;
                 	struct cli_state *cli = NULL;
 
 			print_sockaddr(addr, sizeof(addr), &ip_list[i].ss);
-                        DEBUG(99, ("Found master browser %d of %d: %s\n",
+                     DEBUG(99, ("Found master browser %d of %d: %s\n",
                                    i+1, MAX(count, max_lmb_count),
                                    addr));
 
-                        cli = get_ipc_connect_master_ip(talloc_tos(),
+                     cli = get_ipc_connect_master_ip(talloc_tos(),
 							&ip_list[i],
                                                         &u_info,
 							&wg_ptr);
@@ -532,95 +525,96 @@ SMBC_opendir_ctx(SMBCCTX *context,
 
 			workgroup = talloc_strdup(frame, wg_ptr);
 			server = talloc_strdup(frame, cli->desthost);
-
-                        cli_shutdown(cli);
-
+			
+                     cli_shutdown(cli);
+					 
 			if (!workgroup || !server) {
 				errno = ENOMEM;
 				TALLOC_FREE(frame);
 				return NULL;
 			}
 
-                        DEBUG(4, ("using workgroup %s %s\n",
+                     DEBUG(4, ("using workgroup %s %s\n",
                                   workgroup, server));
 
-                        /*
+                      /*
                          * For each returned master browser IP address, get a
                          * connection to IPC$ on the server if we do not
                          * already have one, and determine the
                          * workgroups/domains that it knows about.
                          */
 
-                        srv = SMBC_server(frame, context, True, server, "IPC$",
+                     srv = SMBC_server(frame, context, True, server, "IPC$",
                                           &workgroup, &user, &password);
-                        if (!srv) {
-                                continue;
-                        }
+                     if (!srv) {
+                     	continue;
+                     }
 
-                        dir->srv = srv;
-                        dir->dir_type = SMBC_WORKGROUP;
+                     dir->srv = srv;
+                     dir->dir_type = SMBC_WORKGROUP;
 
-                        /* Now, list the stuff ... */
-
-                        if (!cli_NetServerEnum(srv->cli,
+                     /* Now, list the stuff ... */
+                     if (!cli_NetServerEnum(srv->cli,
                                                workgroup,
                                                SV_TYPE_DOMAIN_ENUM,
                                                list_unique_wg_fn,
                                                (void *)dir)) {
-                                continue;
-                        }
-                }
+                     	continue;
+                     }
+		}
 
-                SAFE_FREE(ip_list);
-        } else {
-                /*
-                 * Server not an empty string ... Check the rest and see what
-                 * gives
-                 */
+              SAFE_FREE(ip_list);
+	} 
+	else 
+	{		
+              /*
+             * Server not an empty string ... Check the rest and see what
+             * gives
+             */
 		if (*share == '\0') {
 			if (*path != '\0') {
-
-                                /* Should not have empty share with path */
-				errno = EINVAL + 8197;
-				if (dir) {
-					SAFE_FREE(dir->fname);
-					SAFE_FREE(dir);
-				}
-				TALLOC_FREE(frame);
-				return NULL;
-
+			
+                     /* Should not have empty share with path */
+			errno = EINVAL + 8197;
+			if (dir) {
+				SAFE_FREE(dir->fname);
+				SAFE_FREE(dir);
 			}
+			TALLOC_FREE(frame);
+			return NULL;
+		}
 
+		/*
+           	  * We don't know if <server> is really a server name
+             * or is a workgroup/domain name.  If we already have
+             * a server structure for it, we'll use it.
+             * Otherwise, check to see if <server><1D>,
+             * <server><1B>, or <server><20> translates.  We check
+             * to see if <server> is an IP address first.
+             */
+
+             /*
+            * See if we have an existing server.  Do not
+            * establish a connection if one does not already
+            * exist.
+            */
+             srv = SMBC_server( frame, context, False,
+                                            server, "IPC$",
+                                            &workgroup, &user, &password);
+		
+              /*
+             * If no existing server and not an IP addr, look for
+             * LMB or DMB
+             */
+		if (!srv &&
+                   !is_ipaddress(server) &&
+		    (resolve_name(server, &rem_ss, 0x1d, false) ||   /* LMB */
+                   resolve_name(server, &rem_ss, 0x1b, false) )) { /* DMB */
+                  
 			/*
-                         * We don't know if <server> is really a server name
-                         * or is a workgroup/domain name.  If we already have
-                         * a server structure for it, we'll use it.
-                         * Otherwise, check to see if <server><1D>,
-                         * <server><1B>, or <server><20> translates.  We check
-                         * to see if <server> is an IP address first.
-                         */
-
-                        /*
-                         * See if we have an existing server.  Do not
-                         * establish a connection if one does not already
-                         * exist.
-                         */
-                        srv = SMBC_server(frame, context, False,
-                                          server, "IPC$",
-                                          &workgroup, &user, &password);
-
-                        /*
-                         * If no existing server and not an IP addr, look for
-                         * LMB or DMB
-                         */
-			if (!srv &&
-                            !is_ipaddress(server) &&
-			    (resolve_name(server, &rem_ss, 0x1d, false) ||   /* LMB */
-                             resolve_name(server, &rem_ss, 0x1b, false) )) { /* DMB */
-				/*
-				 * "server" is actually a workgroup name,
-				 * not a server. Make this clear.
-				 */
+			  * "server" is actually a workgroup name,
+			  * not a server. Make this clear.
+			  */
 				char *wgroup = server;
 				fstring buserver;
 
@@ -683,69 +677,67 @@ SMBC_opendir_ctx(SMBCCTX *context,
 					TALLOC_FREE(frame);
 					return NULL;
 				}
-			} else if (srv ||
-                                   (resolve_name(server, &rem_ss, 0x20, false))) {
-
-                                /*
-                                 * If we hadn't found the server, get one now
-                                 */
-                                if (!srv) {
-                                        srv = SMBC_server(frame, context, True,
+			} 
+			else if ( srv ||
+                                  (resolve_name(server, &rem_ss, 0x20, false))) {
+				
+                            /*
+                        * If we hadn't found the server, get one now
+                        */
+                          	if (!srv) {
+                            	srv = SMBC_server(frame, context, True,
                                                           server, "IPC$",
                                                           &workgroup,
                                                           &user, &password);
-                                }
+                            }
 
-                                if (!srv) {
-                                        if (dir) {
-                                                SAFE_FREE(dir->fname);
-                                                SAFE_FREE(dir);
-                                        }
+                            if (!srv) {
+                            	if (dir) {
+                                   	SAFE_FREE(dir->fname);
+                                          SAFE_FREE(dir);
+                                   }
 					TALLOC_FREE(frame);
-                                        return NULL;
+                                   return NULL;
+                           	}
+				
+                            dir->dir_type = SMBC_FILE_SHARE;
+                            dir->srv = srv;
 
-                                }
-
-                                dir->dir_type = SMBC_FILE_SHARE;
-                                dir->srv = srv;
-
-                                /* List the shares ... */
-
-                                if (net_share_enum_rpc(
-                                            srv->cli,
-                                            list_fn,
-                                            (void *) dir) < 0 &&
-                                    cli_RNetShareEnum(
+                            /* List the shares ... */
+                           	if (net_share_enum_rpc( srv->cli,
+                                   list_fn,
+                                   (void *) dir) < 0 &&
+                                   cli_RNetShareEnum(
                                             srv->cli,
                                             list_fn,
                                             (void *)dir) < 0) {
 
-                                        errno = cli_errno(srv->cli);
-                                        if (dir) {
-                                                SAFE_FREE(dir->fname);
-                                                SAFE_FREE(dir);
-                                        }
+                                   errno = cli_errno(srv->cli);
+                                   if (dir) {
+                                   	SAFE_FREE(dir->fname);
+                                          SAFE_FREE(dir);
+                                   }
 					TALLOC_FREE(frame);
-                                        return NULL;
-
-                                }
-                        } else {
-                                /* Neither the workgroup nor server exists */
-                                errno = ECONNREFUSED;
-                                if (dir) {
-                                        SAFE_FREE(dir->fname);
-                                        SAFE_FREE(dir);
-                                }
+                            	return NULL;
+                     	}
+                     } 
+			else {
+                     	/* Neither the workgroup nor server exists */
+                            errno = ECONNREFUSED;
+                            if (dir) {
+                            	SAFE_FREE(dir->fname);
+                                   SAFE_FREE(dir);
+                            }
 				TALLOC_FREE(frame);
-                                return NULL;
+                            return NULL;
 			}
 
 		}
 		else {
-                        /*
-                         * The server and share are specified ... work from
-                         * there ...
-                         */
+              	/*
+                  * The server and share are specified ... work from
+                  * there ...
+                  */
 			char *targetpath;
 			struct cli_state *targetcli;
 
@@ -854,6 +846,7 @@ SMBC_opendir_ctx(SMBCCTX *context,
 
 	DLIST_ADD(context->internal->files, dir);
 	TALLOC_FREE(frame);
+
 	return dir;
 
 }
