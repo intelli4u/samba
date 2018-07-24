@@ -3250,20 +3250,20 @@ NTSTATUS _lsa_SetQuotasForAccount(struct pipes_struct *p,
 NTSTATUS _lsa_SetInformationTrustedDomain(struct pipes_struct *p,
 					  struct lsa_SetInformationTrustedDomain *r)
 {
-	p->rng_fault_state = True;
+	p->fault_state = DCERPC_FAULT_OP_RNG_ERROR;
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
 NTSTATUS _lsa_QuerySecret(struct pipes_struct *p, struct lsa_QuerySecret *r)
 {
-	p->rng_fault_state = True;
+	p->fault_state = DCERPC_FAULT_OP_RNG_ERROR;
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
 NTSTATUS _lsa_SetTrustedDomainInfo(struct pipes_struct *p,
 				   struct lsa_SetTrustedDomainInfo *r)
 {
-	p->rng_fault_state = True;
+	p->fault_state = DCERPC_FAULT_OP_RNG_ERROR;
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
@@ -3291,7 +3291,7 @@ NTSTATUS _lsa_SetInfoPolicy2(struct pipes_struct *p,
 NTSTATUS _lsa_SetTrustedDomainInfoByName(struct pipes_struct *p,
 					 struct lsa_SetTrustedDomainInfoByName *r)
 {
-	p->rng_fault_state = True;
+	p->fault_state = DCERPC_FAULT_OP_RNG_ERROR;
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 

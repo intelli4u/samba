@@ -623,20 +623,34 @@ static struct cmd_set *rpcclient_command_list[] = {
 	rpcclient_commands,
 	lsarpc_commands,
 	ds_commands,
+#ifdef SAMR_SUPPORT
 	samr_commands,
+#endif
+#ifdef PRINTER_SUPPORT
 	spoolss_commands,
+#endif
+#ifdef NETLOGON_SUPPORT
 	netlogon_commands,
+#endif
 	srvsvc_commands,
+#ifdef DFS_SUPPORT
 	dfs_commands,
+#endif
+#ifdef DEVELOPER
 	echo_commands,
+#endif
 	epmapper_commands,
 	shutdown_commands,
  	test_commands,
 	wkssvc_commands,
+#ifdef EXTRA_SERVICES
 	ntsvcs_commands,
 	drsuapi_commands,
 	eventlog_commands,
+#endif
+#ifdef WINREG_SUPPORT
 	winreg_commands,
+#endif
 	NULL
 };
 

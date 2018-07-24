@@ -610,7 +610,11 @@ NTSTATUS NTLMv2_RESPONSE_verify_netlogon_creds(const char *account_name,
 			a[len - 1] = '\0';
 		}
 
+#ifdef SAMBA4_INTERNAL_HEIMDAL /* smbtorture4 for make test */
 		cmp = strcasecmp_m(a, v);
+#else /* smbd */
+		cmp = StrCaseCmp(a, v);
+#endif
 		if (cmp != 0) {
 			DEBUG(2,("%s: NTLMv2_RESPONSE with "
 				 "NbComputerName[%s] rejected "
@@ -632,7 +636,11 @@ NTSTATUS NTLMv2_RESPONSE_verify_netlogon_creds(const char *account_name,
 
 		v = av_nb_dn->Value.AvNbDomainName;
 
+#ifdef SAMBA4_INTERNAL_HEIMDAL /* smbtorture4 for make test */
 		cmp = strcasecmp_m(workgroup, v);
+#else /* smbd */
+		cmp = StrCaseCmp(workgroup, v);
+#endif
 		if (cmp != 0) {
 			DEBUG(2,("%s: NTLMv2_RESPONSE with "
 				 "NbDomainName[%s] rejected "

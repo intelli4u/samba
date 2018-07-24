@@ -409,6 +409,7 @@ static bool check_bind_req(struct pipes_struct *p,
 	context_fns->syntax = *abstract;
 
 	context_fns->allow_connect = lp_allow_dcerpc_auth_level_connect();
+#ifdef SAMR_SUPPORT
 	/*
 	 * for the samr and the lsarpc interfaces we don't allow "connect"
 	 * auth_level by default.
@@ -417,14 +418,19 @@ static bool check_bind_req(struct pipes_struct *p,
 	if (ok) {
 		context_fns->allow_connect = false;
 	}
+#endif
+#ifdef LSA_SUPPORT
 	ok = ndr_syntax_id_equal(abstract, &ndr_table_lsarpc.syntax_id);
 	if (ok) {
 		context_fns->allow_connect = false;
 	}
+#endif
+#ifdef NETLOGON_SUPPORT
 	ok = ndr_syntax_id_equal(abstract, &ndr_table_netlogon.syntax_id);
 	if (ok) {
 		context_fns->allow_connect = false;
 	}
+#endif
 	/*
 	 * for the epmapper and echo interfaces we allow "connect"
 	 * auth_level by default.
@@ -433,10 +439,12 @@ static bool check_bind_req(struct pipes_struct *p,
 	if (ok) {
 		context_fns->allow_connect = true;
 	}
+#ifdef DEVELOPER
 	ok = ndr_syntax_id_equal(abstract, &ndr_table_rpcecho.syntax_id);
 	if (ok) {
 		context_fns->allow_connect = true;
 	}
+#endif
 	/*
 	 * every interface can be modified to allow "connect" auth_level by
 	 * using a parametric option like:
@@ -1070,6 +1078,7 @@ static bool api_pipe_bind_req(struct pipes_struct *p,
 		bind_ack_ctx.reason = 0;
 		bind_ack_ctx.syntax = pkt->u.bind.ctx_list[0].transfer_syntaxes[0];
 	} else {
+		p->pipe_bound = False;
 		/* Rejection reason: abstract syntax not supported */
 		bind_ack_ctx.result = DCERPC_BIND_PROVIDER_REJECT;
 		bind_ack_ctx.reason = DCERPC_BIND_REASON_ASYNTAX;
@@ -1221,6 +1230,7 @@ static bool api_pipe_bind_req(struct pipes_struct *p,
 	if (!NT_STATUS_IS_OK(status)) {
 		DEBUG(0, ("Failed to marshall bind_ack packet. (%s)\n",
 			  nt_errstr(status)));
+		goto err_exit;
 	}
 
 	if (auth_resp.length) {
@@ -1648,6 +1658,7 @@ static bool api_pipe_alter_context(struct pipes_struct *p,
 	if (!NT_STATUS_IS_OK(status)) {
 		DEBUG(0, ("Failed to marshall alter_resp packet. (%s)\n",
 			  nt_errstr(status)));
+		goto err_exit;
 	}
 
 	if (auth_resp.length) {
@@ -1747,11 +1758,10 @@ static bool srv_pipe_check_verification_trailer(struct pipes_struct *p,
 {
 	TALLOC_CTX *frame = talloc_stackframe();
 	struct dcerpc_sec_verification_trailer *vt = NULL;
-	const uint32_t bitmask1 =
-		p->auth.client_hdr_signing ? DCERPC_SEC_VT_CLIENT_SUPPORTS_HEADER_SIGNING : 0;
+	const uint32_t bitmask1 = 0;
 	const struct dcerpc_sec_vt_pcontext pcontext = {
 		.abstract_syntax = pipe_fns->syntax,
-		.transfer_syntax = ndr_transfer_syntax_ndr,
+		.transfer_syntax = ndr_transfer_syntax,
 	};
 	const struct dcerpc_sec_vt_header2 header2 =
 	       dcerpc_sec_vt_header2_from_ncacn_packet(pkt);
@@ -1785,6 +1795,7 @@ done:
 static bool api_pipe_request(struct pipes_struct *p,
 				struct ncacn_packet *pkt)
 {
+	TALLOC_CTX *frame = talloc_stackframe();
 	bool ret = False;
 	PIPE_RPC_FNS *pipe_fns;
 	const char *interface_name = NULL;
@@ -1795,9 +1806,6 @@ static bool api_pipe_request(struct pipes_struct *p,
 		TALLOC_FREE(frame);
 		return false;
 	}
-
-	DEBUG(5, ("Requested \\PIPE\\%s\n",
-		  get_pipe_name_from_syntax(talloc_tos(), &p->syntax)));
 
 	/* get the set of RPC functions for this context */
 
@@ -1817,6 +1825,9 @@ static bool api_pipe_request(struct pipes_struct *p,
 
 	SMB_ASSERT(interface_name != NULL);
 
+	DEBUG(5, ("Requested \\PIPE\\%s\n",
+		  interface_name));
+
 	switch (p->auth.auth_level) {
 	case DCERPC_AUTH_LEVEL_NONE:
 	case DCERPC_AUTH_LEVEL_INTEGRITY:
@@ -1824,10 +1835,6 @@ static bool api_pipe_request(struct pipes_struct *p,
 		break;
 	default:
 		if (!pipe_fns->allow_connect) {
-			char *addr;
-
-			addr = tsocket_address_string(p->remote_address, frame);
-
 			DEBUG(1, ("%s: restrict auth_level_connect access "
 				  "to [%s] with auth[type=0x%x,level=0x%x] "
 				  "on [%s] from [%s]\n",
@@ -1835,7 +1842,7 @@ static bool api_pipe_request(struct pipes_struct *p,
 				  p->auth.auth_type,
 				  p->auth.auth_level,
 				  derpc_transport_string_by_transport(p->transport),
-				  addr));
+				  p->client_id->name));
 
 			setup_fault_pdu(p, NT_STATUS(DCERPC_FAULT_ACCESS_DENIED));
 			TALLOC_FREE(frame);
@@ -1857,21 +1864,14 @@ static bool api_pipe_request(struct pipes_struct *p,
 		DEBUG(1, ("Failed to become pipe user!\n"));
 		data_blob_free(&p->out_data.rdata);
 		TALLOC_FREE(frame);
+		return false;
 	}
-	else {
-		DEBUG(0, ("No rpc function table associated with context "
-			  "[%d] on pipe [%s]\n",
-			  pkt->u.request.context_id,
-			  get_pipe_name_from_syntax(talloc_tos(),
-						    &p->syntax)));
-	}
-
 
 	ret = api_rpcTNP(p, pkt, pipe_fns->cmds, pipe_fns->n_cmds,
 			 &pipe_fns->syntax);
 	unbecome_authenticated_pipe_user();
 
-
+	TALLOC_FREE(frame);
 	return ret;
 }
 
@@ -1992,7 +1992,7 @@ void set_incoming_fault(struct pipes_struct *p)
 	data_blob_free(&p->in_data.data);
 	p->in_data.pdu_needed_len = 0;
 	p->in_data.pdu.length = 0;
-	p->fault_state = DCERPC_FAULT_CANT_PERFORM;
+	p->fault_state = DCERPC_NCA_S_PROTO_ERROR;
 
 	p->allow_alter = false;
 	p->allow_auth3 = false;
@@ -2312,7 +2312,7 @@ done:
 			 "pipe %s\n", get_pipe_name_from_syntax(talloc_tos(),
 								&p->syntax)));
 		set_incoming_fault(p);
-		setup_fault_pdu(p, NT_STATUS(DCERPC_FAULT_OP_RNG_ERROR));
+		setup_fault_pdu(p, NT_STATUS(DCERPC_NCA_S_PROTO_ERROR));
 		TALLOC_FREE(pkt);
 	} else {
 		/*

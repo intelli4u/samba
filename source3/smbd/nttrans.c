@@ -1934,7 +1934,6 @@ NTSTATUS smbd_do_query_security_desc(connection_struct *conn,
 	if (S_ISLNK(fsp->fsp_name->st.st_ex_mode)) {
 		DEBUG(10, ("ACL get on symlink %s denied.\n",
 			fsp_str_dbg(fsp)));
-		TALLOC_FREE(frame);
 		return NT_STATUS_ACCESS_DENIED;
 	}
 

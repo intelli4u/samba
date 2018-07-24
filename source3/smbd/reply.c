@@ -3979,9 +3979,6 @@ void reply_writebraw(struct smb_request *req)
 	}
 
 	/* Ensure we don't write bytes past the end of this packet. */
-	/*
-	 * This already protects us against CVE-2017-12163.
-	 */
 	if (data + numtowrite > smb_base(req->inbuf) + smb_len(req->inbuf)) {
 		reply_nterror(req, NT_STATUS_INVALID_PARAMETER);
 		error_to_writebrawerr(req);
@@ -4083,11 +4080,6 @@ void reply_writebraw(struct smb_request *req)
 			exit_server_cleanly("secondary writebraw failed");
 		}
 
-		/*
-		 * We are not vulnerable to CVE-2017-12163
-		 * here as we are guarenteed to have numtowrite
-		 * bytes available - we just read from the client.
-		 */
 		nwritten = write_file(req,fsp,buf+4,startpos+nwritten,numtowrite);
 		if (nwritten == -1) {
 			TALLOC_FREE(buf);
@@ -4557,9 +4549,6 @@ void reply_write_and_X(struct smb_request *req)
 			return;
 		}
 	} else {
-		/*
-		 * This already protects us against CVE-2017-12163.
-		 */
 		if (smb_doff > smblen || smb_doff + numtowrite < numtowrite ||
 				smb_doff + numtowrite > smblen) {
 			reply_nterror(req, NT_STATUS_INVALID_PARAMETER);
@@ -5255,7 +5244,11 @@ void reply_printopen(struct smb_request *req)
 		return;
 	}
 
-	if (!CAN_PRINT(conn)) {
+
+#ifdef PRINTER_SUPPORT
+	if (!CAN_PRINT(conn))
+#endif
+	{
 		reply_nterror(req, NT_STATUS_ACCESS_DENIED);
 		END_PROFILE(SMBsplopen);
 		return;
@@ -5361,7 +5354,10 @@ void reply_printqueue(struct smb_request *req)
 	   is really quite gross and only worked when there was only
 	   one printer - I think we should now only accept it if they
 	   get it right (tridge) */
-	if (!CAN_PRINT(conn)) {
+#ifdef PRINTER_SUPPORT
+	if (!CAN_PRINT(conn))
+#endif
+	{
 		reply_nterror(req, NT_STATUS_ACCESS_DENIED);
 		END_PROFILE(SMBsplretq);
 		return;
@@ -5544,9 +5540,6 @@ void reply_printwrite(struct smb_request *req)
 
 	numtowrite = SVAL(req->buf, 1);
 
-	/*
-	 * This already protects us against CVE-2017-12163.
-	 */
 	if (req->buflen < numtowrite + 3) {
 		reply_nterror(req, NT_STATUS_INVALID_PARAMETER);
 		END_PROFILE(SMBsplwr);

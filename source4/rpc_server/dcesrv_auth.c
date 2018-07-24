@@ -320,6 +320,11 @@ bool dcesrv_auth_request(struct dcesrv_call_state *call, DATA_BLOB *full_packet)
 		return false;
 	}
 
+	if (pkt->auth_length == 0) {
+		DEBUG(1,("dcesrv_auth_request: unexpected auth_length of 0\n"));
+		return false;
+	}
+
 	status = dcerpc_pull_auth_trailer(pkt, call,
 					  &pkt->u.request.stub_and_verifier,
 					  &auth, &auth_length, false);

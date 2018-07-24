@@ -1123,7 +1123,7 @@ static NTSTATUS check_account(TALLOC_CTX *mem_ctx, const char *domain,
 				"%s%c%s",
 				domain,
 				*lp_winbind_separator(),
-				lower_username);
+				username);
 	if (!orig_dom_user) {
 		return NT_STATUS_NO_MEMORY;
 	}

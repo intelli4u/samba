@@ -57,7 +57,7 @@ static char *store_file_unix_basic_info2(connection_struct *conn,
 
 static NTSTATUS refuse_symlink(connection_struct *conn,
 			const files_struct *fsp,
-			const struct smb_filename *smb_fname)
+			const char *name)
 {
 	SMB_STRUCT_STAT sbuf;
 	const SMB_STRUCT_STAT *pst = NULL;

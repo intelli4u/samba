@@ -102,6 +102,7 @@ static int make_server_pipes_struct(TALLOC_CTX *mem_ctx,
 	p->syntax = id;
 	p->transport = transport;
 	p->ncalrpc_as_system = ncalrpc_as_system;
+	p->allow_bind = true;
 
 	p->mem_ctx = talloc_named(p, 0, "pipe %s %p", pipe_name, p);
 	if (!p->mem_ctx) {

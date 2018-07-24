@@ -185,6 +185,7 @@ struct torture_suite *ndr_drsblobs_suite(TALLOC_CTX *ctx)
 	torture_suite_add_ndr_pull_test(suite, ForestTrustInfo, forest_trust_info_data_out, forest_trust_info_check_out);
 	torture_suite_add_ndr_pull_test(suite, trustDomainPasswords, trust_domain_passwords_in, trust_domain_passwords_check_in);
 
+#if 0
 	torture_suite_add_ndr_pullpush_test(suite,
 					    trustAuthInOutBlob,
 					    base64_decode_data_blob_talloc(suite, trustAuthIncoming),
@@ -194,6 +195,7 @@ struct torture_suite *ndr_drsblobs_suite(TALLOC_CTX *ctx)
 					    trustAuthInOutBlob,
 					    base64_decode_data_blob_talloc(suite, trustAuthOutgoing),
 					    NULL);
+#endif
 
 	return suite;
 }

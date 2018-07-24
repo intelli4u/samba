@@ -85,17 +85,23 @@ bool init_service_op_table( void )
 
 	/* add builtin services */
 
+#ifdef PRINTER_SUPPORT
 	svcctl_ops[i].name = talloc_strdup( svcctl_ops, "Spooler" );
 	svcctl_ops[i].ops  = &spoolss_svc_ops;
 	i++;
+#endif
 
+#ifdef NETLOGON_SUPPORT
 	svcctl_ops[i].name = talloc_strdup( svcctl_ops, "NETLOGON" );
 	svcctl_ops[i].ops  = &netlogon_svc_ops;
 	i++;
+#endif
 
+#ifdef WINREG_SUPPORT
 	svcctl_ops[i].name = talloc_strdup( svcctl_ops, "RemoteRegistry" );
 	svcctl_ops[i].ops  = &winreg_svc_ops;
 	i++;
+#endif
 
 	svcctl_ops[i].name = talloc_strdup( svcctl_ops, "WINS" );
 	svcctl_ops[i].ops  = &wins_svc_ops;

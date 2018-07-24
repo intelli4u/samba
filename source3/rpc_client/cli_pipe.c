@@ -28,6 +28,7 @@
 #include "../libcli/auth/ntlmssp.h"
 #include "ntlmssp_wrap.h"
 #include "librpc/gen_ndr/ndr_dcerpc.h"
+#include "librpc/gen_ndr/ndr_netlogon_c.h"
 #include "librpc/rpc/dcerpc.h"
 #include "librpc/crypto/gse.h"
 #include "librpc/crypto/spnego.h"
@@ -444,7 +445,6 @@ static NTSTATUS cli_pipe_validate_current_pdu(TALLOC_CTX *mem_ctx,
 				  rpccli_pipe_txt(talloc_tos(), cli),
 				  pkt->ptype, expected_pkt_type,
 				  nt_errstr(ret)));
-			NDR_PRINT_DEBUG(ncacn_packet, pkt);
 			return ret;
 		}
 
@@ -465,7 +465,6 @@ static NTSTATUS cli_pipe_validate_current_pdu(TALLOC_CTX *mem_ctx,
 				  rpccli_pipe_txt(talloc_tos(), cli),
 				  pkt->ptype, expected_pkt_type,
 				  nt_errstr(ret)));
-			NDR_PRINT_DEBUG(ncacn_packet, pkt);
 			return ret;
 		}
 
@@ -485,7 +484,6 @@ static NTSTATUS cli_pipe_validate_current_pdu(TALLOC_CTX *mem_ctx,
 				  rpccli_pipe_txt(talloc_tos(), cli),
 				  pkt->ptype, expected_pkt_type,
 				  nt_errstr(ret)));
-			NDR_PRINT_DEBUG(ncacn_packet, pkt);
 			return ret;
 		}
 
@@ -507,7 +505,6 @@ static NTSTATUS cli_pipe_validate_current_pdu(TALLOC_CTX *mem_ctx,
 				  rpccli_pipe_txt(talloc_tos(), cli),
 				  pkt->ptype, expected_pkt_type,
 				  nt_errstr(ret)));
-			NDR_PRINT_DEBUG(ncacn_packet, pkt);
 			return ret;
 		}
 
@@ -525,7 +522,6 @@ static NTSTATUS cli_pipe_validate_current_pdu(TALLOC_CTX *mem_ctx,
 				  rpccli_pipe_txt(talloc_tos(), cli),
 				  pkt->ptype, expected_pkt_type,
 				  nt_errstr(ret)));
-			NDR_PRINT_DEBUG(ncacn_packet, pkt);
 			return ret;
 		}
 
@@ -569,7 +565,6 @@ static NTSTATUS cli_pipe_validate_current_pdu(TALLOC_CTX *mem_ctx,
 				  rpccli_pipe_txt(talloc_tos(), cli),
 				  pkt->ptype, expected_pkt_type,
 				  nt_errstr(ret)));
-			NDR_PRINT_DEBUG(ncacn_packet, pkt);
 			return ret;
 		}
 
@@ -1525,9 +1520,6 @@ static NTSTATUS prepare_verification_trailer(struct rpc_api_pipe_req_state *stat
 		ZERO_STRUCTP(c);
 
 		c->command = DCERPC_SEC_VT_COMMAND_BITMASK1;
-		if (a->client_hdr_signing) {
-			c->u.bitmask1 = DCERPC_SEC_VT_CLIENT_SUPPORTS_HEADER_SIGNING;
-		}
 		state->verify_bitmask1 = true;
 	}
 
@@ -1548,7 +1540,7 @@ static NTSTATUS prepare_verification_trailer(struct rpc_api_pipe_req_state *stat
 		state->verify_pcontext = true;
 	}
 
-	if (!a->hdr_signing) {
+	if (true) { /* We do not support header signing */
 		t->commands = talloc_realloc(t, t->commands,
 					     struct dcerpc_sec_vt,
 					     t->count.count + 1);
@@ -1964,9 +1956,15 @@ struct rpc_pipe_bind_state {
 	DATA_BLOB rpc_out;
 	bool auth3;
 	uint32_t rpc_call_id;
+	struct netr_Authenticator auth;
+	struct netr_Authenticator return_auth;
+	struct netlogon_creds_CredentialState *creds;
+	union netr_Capabilities capabilities;
+	struct netr_LogonGetCapabilities r;
 };
 
 static void rpc_pipe_bind_step_one_done(struct tevent_req *subreq);
+static void rpc_pipe_bind_step_two_trigger(struct tevent_req *req);
 static NTSTATUS rpc_bind_next_send(struct tevent_req *req,
 				   struct rpc_pipe_bind_state *state,
 				   DATA_BLOB *credentials);
@@ -2070,25 +2068,23 @@ static void rpc_pipe_bind_step_one_done(struct tevent_req *subreq)
 
 	case DCERPC_AUTH_TYPE_NONE:
 	case DCERPC_AUTH_TYPE_NCALRPC_AS_SYSTEM:
-	case DCERPC_AUTH_TYPE_SCHANNEL:
 		/* Bind complete. */
 		tevent_req_done(req);
 		return;
 
-	case DCERPC_AUTH_TYPE_NTLMSSP:
-	case DCERPC_AUTH_TYPE_SPNEGO:
-	case DCERPC_AUTH_TYPE_KRB5:
-		/* Paranoid lenght checks */
-		if (pkt->frag_length < DCERPC_AUTH_TRAILER_LENGTH
-						+ pkt->auth_length) {
-			tevent_req_nterror(req,
-					NT_STATUS_INFO_LENGTH_MISMATCH);
+	case DCERPC_AUTH_TYPE_SCHANNEL:
+		rpc_pipe_bind_step_two_trigger(req);
+		return;
+
+	default:
+		if (pkt->auth_length == 0) {
+			tevent_req_nterror(req, NT_STATUS_RPC_PROTOCOL_ERROR);
 			return;
 		}
 		/* get auth credentials */
-		status = dcerpc_pull_dcerpc_auth(talloc_tos(),
-						 &pkt->u.bind_ack.auth_info,
-						 &auth, false);
+		status = dcerpc_pull_auth_trailer(pkt, talloc_tos(),
+						  &pkt->u.bind_ack.auth_info,
+						  &auth, NULL, true);
 		if (!NT_STATUS_IS_OK(status)) {
 			DEBUG(0, ("Failed to pull dcerpc auth: %s.\n",
 				  nt_errstr(status)));
@@ -2119,9 +2115,6 @@ static void rpc_pipe_bind_step_one_done(struct tevent_req *subreq)
 		}
 
 		break;
-
-	default:
-		goto err_out;
 	}
 
 	/*
@@ -2207,6 +2200,158 @@ err_out:
 	DEBUG(0,("cli_finish_bind_auth: unknown auth type %u\n",
 		 (unsigned int)state->cli->auth->auth_type));
 	tevent_req_nterror(req, NT_STATUS_INTERNAL_ERROR);
+}
+
+static void rpc_pipe_bind_step_two_done(struct tevent_req *subreq);
+
+static void rpc_pipe_bind_step_two_trigger(struct tevent_req *req)
+{
+	struct rpc_pipe_bind_state *state =
+		tevent_req_data(req,
+				struct rpc_pipe_bind_state);
+	struct dcerpc_binding_handle *b = state->cli->binding_handle;
+	struct schannel_state *schannel_auth =
+		talloc_get_type_abort(state->cli->auth->auth_ctx,
+				      struct schannel_state);
+	struct tevent_req *subreq;
+
+#ifndef NETLOGON_SUPPORT
+	tevent_req_nterror(req, NT_STATUS_UNSUCCESSFUL);
+	return;
+#endif
+
+	if (schannel_auth == NULL ||
+	    !ndr_syntax_id_equal(&state->cli->abstract_syntax,
+				 &ndr_table_netlogon.syntax_id)) {
+		tevent_req_done(req);
+		return;
+	}
+
+	ZERO_STRUCT(state->return_auth);
+
+	state->creds = netlogon_creds_copy(state, schannel_auth->creds);
+	if (state->creds == NULL) {
+		tevent_req_nterror(req, NT_STATUS_NO_MEMORY);
+		return;
+	}
+
+	netlogon_creds_client_authenticator(state->creds, &state->auth);
+
+	state->r.in.server_name = state->cli->srv_name_slash;
+	state->r.in.computer_name = state->creds->computer_name;
+	state->r.in.credential = &state->auth;
+	state->r.in.query_level = 1;
+	state->r.in.return_authenticator = &state->return_auth;
+
+	state->r.out.capabilities = &state->capabilities;
+	state->r.out.return_authenticator = &state->return_auth;
+
+	subreq = dcerpc_netr_LogonGetCapabilities_r_send(talloc_tos(),
+							 state->ev,
+							 b,
+							 &state->r);
+	if (subreq == NULL) {
+		tevent_req_nterror(req, NT_STATUS_NO_MEMORY);
+		return;
+	}
+
+	tevent_req_set_callback(subreq, rpc_pipe_bind_step_two_done, req);
+	return;
+}
+
+static void rpc_pipe_bind_step_two_done(struct tevent_req *subreq)
+{
+	struct tevent_req *req =
+		tevent_req_callback_data(subreq,
+					 struct tevent_req);
+	struct rpc_pipe_bind_state *state =
+		tevent_req_data(req,
+				struct rpc_pipe_bind_state);
+	struct schannel_state *schannel_auth =
+		talloc_get_type_abort(state->cli->auth->auth_ctx,
+				      struct schannel_state);
+	NTSTATUS status;
+
+	status = dcerpc_netr_LogonGetCapabilities_r_recv(subreq, talloc_tos());
+	TALLOC_FREE(subreq);
+	if (NT_STATUS_EQUAL(status, NT_STATUS_RPC_PROCNUM_OUT_OF_RANGE)) {
+		if (state->cli->dc->negotiate_flags &
+		    NETLOGON_NEG_SUPPORTS_AES) {
+			DEBUG(5, ("AES is not supported and the error was %s\n",
+				  nt_errstr(status)));
+			tevent_req_nterror(req,
+					   NT_STATUS_INVALID_NETWORK_RESPONSE);
+			return;
+		}
+
+		/* This is probably NT */
+		DEBUG(5, ("We are checking against an NT - %s\n",
+			  nt_errstr(status)));
+		tevent_req_done(req);
+		return;
+	} else if (!NT_STATUS_IS_OK(status)) {
+		DEBUG(0, ("dcerpc_netr_LogonGetCapabilities_r_recv failed with %s\n",
+			  nt_errstr(status)));
+		tevent_req_nterror(req, status);
+		return;
+	}
+
+	if (NT_STATUS_EQUAL(state->r.out.result, NT_STATUS_NOT_IMPLEMENTED)) {
+		if (state->creds->negotiate_flags & NETLOGON_NEG_SUPPORTS_AES) {
+			/* This means AES isn't supported. */
+			DEBUG(5, ("AES is not supported and the error was %s\n",
+				  nt_errstr(state->r.out.result)));
+			tevent_req_nterror(req,
+					   NT_STATUS_INVALID_NETWORK_RESPONSE);
+			return;
+		}
+
+		/* This is probably an old Samba version */
+		DEBUG(5, ("We are checking against an old Samba version - %s\n",
+			  nt_errstr(state->r.out.result)));
+		tevent_req_done(req);
+		return;
+	}
+
+	/* We need to check the credential state here, cause win2k3 and earlier
+	 * returns NT_STATUS_NOT_IMPLEMENTED */
+	if (!netlogon_creds_client_check(state->creds,
+					 &state->r.out.return_authenticator->cred)) {
+		/*
+		 * Server replied with bad credential. Fail.
+		 */
+		DEBUG(0,("rpc_pipe_bind_step_two_done: server %s "
+			 "replied with bad credential\n",
+			 state->cli->desthost));
+		tevent_req_nterror(req, NT_STATUS_UNSUCCESSFUL);
+		return;
+	}
+
+	TALLOC_FREE(schannel_auth->creds);
+	schannel_auth->creds = talloc_steal(state->cli, state->creds);
+
+	if (!NT_STATUS_IS_OK(state->r.out.result)) {
+		DEBUG(0, ("dcerpc_netr_LogonGetCapabilities_r_recv failed with %s\n",
+			  nt_errstr(state->r.out.result)));
+		tevent_req_nterror(req, state->r.out.result);
+		return;
+	}
+
+	if (state->creds->negotiate_flags !=
+	    state->r.out.capabilities->server_capabilities) {
+		DEBUG(0, ("The client capabilities don't match the server "
+			  "capabilities: local[0x%08X] remote[0x%08X]\n",
+			  state->creds->negotiate_flags,
+			  state->capabilities.server_capabilities));
+		tevent_req_nterror(req,
+				   NT_STATUS_INVALID_NETWORK_RESPONSE);
+		return;
+	}
+
+	/* TODO: Add downgrade dectection. */
+
+	tevent_req_done(req);
+	return;
 }
 
 static NTSTATUS rpc_bind_next_send(struct tevent_req *req,
@@ -3245,12 +3390,14 @@ NTSTATUS cli_rpc_pipe_open_noauth_transport(struct cli_state *cli,
 	status = rpc_pipe_bind(result, auth);
 	if (!NT_STATUS_IS_OK(status)) {
 		int lvl = 0;
+#ifdef ACTIVE_DIRECTORY
 		if (ndr_syntax_id_equal(interface,
 					&ndr_table_dssetup.syntax_id)) {
 			/* non AD domains just don't have this pipe, avoid
 			 * level 0 statement in that case - gd */
 			lvl = 3;
 		}
+#endif
 		DEBUG(lvl, ("cli_rpc_pipe_open_noauth: rpc_pipe_bind for pipe "
 			    "%s failed with error %s\n",
 			    get_pipe_name_from_syntax(talloc_tos(), interface),
