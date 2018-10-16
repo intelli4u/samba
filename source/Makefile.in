@@ -540,7 +540,7 @@ PASSWD_UTIL_OBJ = utils/passwd_util.o
 #09/10/2007, zzz for generating file
 #SMB_PASS_OBJ = utils/smb/smb_pass.o lib/md4.o libsmb/smbdes.o 
 SMB_PASS_OBJ = utils/smb_pass.o $(PARAM_OBJ)  $(LIBSAMBA_OBJ) \
-		$(LIB_NONSMBD_OBJ)
+		$(LIB_NONSMBD_OBJ) $(RPC_PARSE_OBJ1) $(SECRETS_OBJ)
 
 SMBPASSWD_OBJ = utils/smbpasswd.o $(PASSWD_UTIL_OBJ) $(PASSCHANGE_OBJ) \
 		$(PASSDB_OBJ)
