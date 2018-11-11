@@ -19,18 +19,13 @@ enum acl_mode
 
 int main(int argc, const char *argv[])
 {
-    int i;
-    int opt;
     int flags;
     int debug = 0;
-    int numeric = 0;
-    int full_time_names = 0;
-    enum acl_mode mode = SMB_ACL_GET;
     static char *the_acl = NULL;
     int ret;
-    char *p;
-    char *debugstr;
+    const char *debugstr;
     char value[1024];
+    SMBCCTX *context;
 
     if (smbc_init(get_auth_data_fn, debug) != 0)
     {
@@ -38,8 +33,8 @@ int main(int argc, const char *argv[])
         return 1;
     }
 
-    SMBCCTX *context = smbc_set_context(NULL);
-    smbc_option_set(context, "full_time_names", 1);
+    context = smbc_set_context(NULL);
+    smbc_setOptionFullTimeNames(context, 1);
     
     the_acl = strdup("system.nt_sec_desc.*");
     ret = smbc_getxattr(argv[1], the_acl, value, sizeof(value));

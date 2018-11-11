@@ -1,97 +1,118 @@
-#
-# Samba Makefile
-#
-# $ Copyright Open Broadcom Corporation 2010 $
-#
-# $Id: Makefile,v 1.6 2010-07-17 02:57:34 kenlo Exp $
-#
+# simple makefile wrapper to run waf
 
-export SAMBA_TOP := $(shell pwd)
+PYTHON?=python
+WAF_BINARY=$(PYTHON) ./buildtools/bin/waf
+WAF=WAF_MAKE=1 $(WAF_BINARY)
 
-SAMBA_SRC=source
+all:
+	$(WAF) build
 
-CFLAGS += -DLINUX
+install:
+	$(WAF) install
 
-DIRS := ${SAMBA_SRC}
+uninstall:
+	$(WAF) uninstall
 
-.PHONY: all
-all: samba
+test:
+	$(WAF) test $(TEST_OPTIONS)
 
-.PHONY: configure
-configure:
-	[ -f $(SAMBA_SRC)/Makefile ] || \
-	(cd $(SAMBA_SRC); \
-	 export SMB_BUILD_CC_NEGATIVE_ENUM_VALUES=yes ; \
-	 export libreplace_cv_READDIR_GETDIRENTRIES=no ; \
-	 export libreplace_cv_READDIR_GETDENTS=no ; \
-	 export linux_getgrouplist_ok=no ; \
-	 export samba_cv_REPLACE_READDIR=no ; \
-	 export samba_cv_HAVE_WRFILE_KEYTAB=yes ; \
-	 export samba_cv_HAVE_KERNEL_OPLOCKS_LINUX=yes ; \
-	 export samba_cv_HAVE_IFACE_IFCONF=yes ; \
-	 export samba_cv_USE_SETRESUID=yes ; \
-	 CC=$(CC) ./configure \
-	    --target=arm-brcm-linux-uclibcgnueabi \
-	    --host=arm-brcm-linux-uclibcgnueabi \
-	    --build=`/bin/arch`-linux \
-	    --enable-shared \
-	    --disable-static \
-	    --disable-cups \
-	    --disable-iprint \
-	    --disable-pie \
-	    --disable-fam \
-	    --localstatedir=/tmp/samba/lib/ \
-	    --with-configdir=/usr/local/samba/lib/ \
-	    --with-privatedir=/usr/local/samba/private \
-	    --with-lockdir=/usr/local/samba/var/locks \
-	    --with-piddir=/usr/local/samba/var/locks \
-	    --without-ldap \
-	    --without-sys-quotas \
-	    --without-cifsmount \
-	    --prefix=/usr/local/samba; \
-	)
+help:
+	@echo NOTE: to run extended waf options use $(WAF_BINARY) or modify your PATH
+	$(WAF) --help
 
-.PHONY: samba
-samba: configure headers
-	+$(MAKE) -C $(SAMBA_SRC)
+subunit-test:
+	$(WAF) test --filtered-subunit $(TEST_OPTIONS)
 
-.PHONY: headers
-headers: configure
-	+$(MAKE) -C $(SAMBA_SRC) headers
+testenv:
+	$(WAF) test --testenv $(TEST_OPTIONS)
 
-.PHONY: install
-install: all
-	install -d $(TARGETDIR)/usr/local/
-	install -d $(TARGETDIR)/usr/local/samba
-	install -d $(TARGETDIR)/usr/local/samba/lib
-	install -d $(TARGETDIR)/tmp/samba/
-	install -d $(TARGETDIR)/tmp/samba/private
-	install -d $(TARGETDIR)/etc
-	install -m 755 $(SAMBA_SRC)/../data/group $(TARGETDIR)/etc
-	install -m 755 $(SAMBA_SRC)/../data/lmhosts $(TARGETDIR)/usr/local/samba/lib
-	install -m 755 $(SAMBA_SRC)/bin/smb_pass  $(TARGETDIR)/usr/local/samba/
-	install -m 755 $(SAMBA_SRC)/bin/nmbd  $(TARGETDIR)/usr/local/samba/
-	install -m 755 $(SAMBA_SRC)/bin/smbd  $(TARGETDIR)/usr/local/samba/
-	install -m 755 $(SAMBA_SRC)/bin/libbigballofmud.so $(TARGETDIR)/usr/lib/libbigballofmud.so.0
-	$(STRIP) $(TARGETDIR)/usr/local/samba/smbd
-	$(STRIP) $(TARGETDIR)/usr/local/samba/nmbd
-	$(STRIP) $(TARGETDIR)/usr/local/samba/smb_pass
-	cd $(TARGETDIR)/usr/local/samba && unlink  private || pwd
-	cd $(TARGETDIR)/usr/local/samba && unlink  var || pwd
-	cd $(TARGETDIR)/usr/local/samba && unlink  lock || pwd
-	cd $(TARGETDIR)/usr/local/samba && ln -sf ../../../tmp/samba/private private
-	cd $(TARGETDIR)/usr/local/samba && ln -sf ../../../var var
-	cd $(TARGETDIR)/usr/local/samba && ln -sf ../../../var/lock lock
-	cd $(TARGETDIR)/usr/local/samba/lib && ln -sf ../../../tmp/samba/private/smb.conf smb.conf
-	cd $(TARGETDIR)/etc && unlink passwd || pwd
-	cd $(TARGETDIR)/etc && ln -sf ../tmp/samba/private/passwd passwd
+gdbtestenv:
+	$(WAF) test --testenv --gdbtest $(TEST_OPTIONS)
 
-install-%:
-	+$(MAKE) -C $(patsubst install-%,%,$@) install
+quicktest:
+	$(WAF) test --quick $(TEST_OPTIONS)
 
-.PHONY: clean
-clean: $(addprefix clean-,${DIRS})
+randomized-test:
+	$(WAF) test --random-order $(TEST_OPTIONS)
 
-.PHONY: $(addprefix clean-,${DIRS})
-$(addprefix clean-,${DIRS}):
-	+$(MAKE) -C $(patsubst clean-%,%,$@) clean
+testlist:
+	$(WAF) test --list $(TEST_OPTIONS)
+
+dist:
+	touch .tmplock
+	WAFLOCK=.tmplock $(WAF) dist
+
+distcheck:
+	touch .tmplock
+	WAFLOCK=.tmplock $(WAF) distcheck
+
+clean:
+	$(WAF) clean
+
+distclean:
+	$(WAF) distclean
+
+reconfigure: configure
+	$(WAF) reconfigure
+
+show_waf_options:
+	$(WAF) --help
+
+# some compatibility make targets
+everything: all
+
+testsuite: all
+
+check: test
+
+torture: all
+
+# this should do an install as well, once install is finished
+installcheck: test
+
+etags:
+	$(WAF) etags
+
+ctags:
+	$(WAF) ctags
+
+pydoctor:
+	$(WAF) pydoctor
+
+pep8:
+	$(WAF) pep8
+
+# Adding force on the depencies will force the target to be always rebuild form the Make
+# point of view forcing make to invoke waf
+
+bin/smbd: FORCE
+	$(WAF) --targets=smbd/smbd
+
+bin/winbindd: FORCE
+	$(WAF) --targets=winbindd/winbindd
+
+bin/nmbd: FORCE
+	$(WAF) --targets=nmbd/nmbd
+
+bin/smbclient: FORCE
+	$(WAF) --targets=client/smbclient
+
+# this allows for things like "make bin/smbtorture"
+# mainly for the binary that don't have a broken mode like smbd that must
+# be build with smbd/smbd
+bin/%: FORCE
+	$(WAF) --targets=$(subst bin/,,$@)
+
+# Catch all rule to be able to call make service_repl in order to find the name
+# of the submodule you want to build, look at the wscript
+%:
+	$(WAF) --targets=$@
+
+# This rule has to be the last one
+FORCE:
+# Having .NOTPARALLEL will force make to do target once at a time but still -j
+# will be present in the MAKEFLAGS that are in turn interpreted by WAF
+# so only 1 waf at a time will be called but it will still be able to do parralel builds if
+# instructed to do so
+.NOTPARALLEL: %
+.PHONY: FORCE everything testsuite check torture
