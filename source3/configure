@@ -83597,11 +83597,11 @@ $as_echo "$ac_cv_lib_pthread_pthread_attr_init" >&6; }
 if test "x$ac_cv_lib_pthread_pthread_attr_init" = x""yes; then
 
 	     PTHREAD_CFLAGS="-D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS"
-	     if test "${HOST}" = "arm"; then
-		PTHREAD_LDFLAGS="$LD_LIBRARY_PATH/../arm-brcm-linux-uclibcgnueabi/sysroot/usr/lib/libpthread.a"
-	     else
+#	     if test "${HOST}" = "arm"; then
+#		PTHREAD_LDFLAGS="$LD_LIBRARY_PATH/../arm-brcm-linux-uclibcgnueabi/sysroot/usr/lib/libpthread.a"
+#	     else
 		PTHREAD_LDFLAGS="-lpthread"
-	     fi
+#	     fi
 fi
 
 fi
