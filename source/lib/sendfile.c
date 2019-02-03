@@ -34,27 +34,11 @@
 #define MSG_MORE 0x8000
 #endif
 
-#include <errno.h>
-#include <string.h>
-#define cprintf(fmt, args...) do { \
-	FILE *fp = fopen("/dev/console", "w"); \
-	if (fp) { \
-		fprintf(fp, fmt , ## args); \
-		fclose(fp); \
-	} \
-} while (0)
-
-
-extern ssize_t sendfile64 (int __out_fd, int __in_fd, __off64_t *__offset, size_t __count);
-
-//ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
-ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT offset, size_t count)
+ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
 {
 	size_t total=0;
 	ssize_t ret;
 	size_t hdr_len = 0;
-
-    //cprintf("%s(%d)\n", __FUNCTION__, __LINE__); //debug
 
 	/*
 	 * Send the header first.
@@ -66,10 +50,7 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT
 		while (total < hdr_len) {
 			ret = sys_send(tofd, header->data + total,hdr_len - total, MSG_MORE);
 			if (ret == -1)
-			{
-			    cprintf("%s(%d) hdr_len=%d , total=%d\n", __FUNCTION__, __LINE__, hdr_len, total); //debug
 				return -1;
-			}
 			total += ret;
 		}
 	}
@@ -82,7 +63,6 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT
 			nwritten = sendfile64(tofd, fromfd, &offset, total);
 #else
 			nwritten = sendfile(tofd, fromfd, &offset, total);
-			//nwritten = sendfile64(tofd, fromfd, &offset, total); /* foxconn modified */
 #endif
 		} while (nwritten == -1 && errno == EINTR);
 		if (nwritten == -1) {
@@ -96,19 +76,13 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT
 				 * layer violation. JRA.
 				 */
 				errno = EINTR; /* Normally we can never return this. */
-			    cprintf("%s(%d) offset=%d, total=%d \n", __FUNCTION__, __LINE__, offset, total); //debug
 			}
-			cprintf("%s(%d) err=%s, count=(%d) offset=(%d) total=%d\n", __FUNCTION__, __LINE__, strerror(errno), count, offset, total); //debug
 			return -1;
 		}
 		if (nwritten == 0)
-		{
-		    cprintf("%s(%d) offset=%d, total=%d \n", __FUNCTION__, __LINE__, offset, total); //debug
 			return -1; /* I think we're at EOF here... */
-		}
 		total -= nwritten;
 	}
-	//cprintf("%s(%d) %d\n", __FUNCTION__, __LINE__, count + hdr_len); //debug
 	return count + hdr_len;
 }
 
@@ -126,8 +100,7 @@ extern int32 sendfile (int out_fd, int in_fd, int32 *offset, uint32 count);
 #define MSG_MORE 0x8000
 #endif
 
-//ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
-ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT offset, size_t count)
+ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
 {
 	size_t total=0;
 	ssize_t ret;
@@ -200,8 +173,7 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT
 
 #include <sys/sendfile.h>
 
-//ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
-ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT offset, size_t count)
+ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
 {
 	int sfvcnt;
 	size_t total, xferred;
@@ -287,8 +259,7 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-//ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
-ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT offset, size_t count)
+ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
 {
 	size_t total=0;
 	struct iovec hdtrl[2];
@@ -359,8 +330,7 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-//ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
-ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT offset, size_t count)
+ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
 {
 	size_t total=0;
 	struct sf_hdtr hdr;
@@ -432,10 +402,8 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT
 /* Contributed by William Jojo <jojowil@hvcc.edu> */
 #include <sys/socket.h>
 
-//ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
-ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT offset, size_t count)
+ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
 {
-	size_t total=0;
 	struct sf_parms hdtrl;
 
 	/* Set up the header/trailer struct params. */
@@ -484,8 +452,7 @@ ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT
 
 #else /* No sendfile implementation. Return error. */
 
-//ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
-ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_BIG_UINT offset, size_t count)
+ssize_t sys_sendfile(int tofd, int fromfd, const DATA_BLOB *header, SMB_OFF_T offset, size_t count)
 {
 	/* No sendfile syscall. */
 	errno = ENOSYS;
